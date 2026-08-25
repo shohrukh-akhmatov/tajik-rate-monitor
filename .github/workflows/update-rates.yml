@@ -40,6 +40,9 @@ jobs:
       - name: Collect official bank rates
         run: python monitor.py
 
+      - name: Normalize cash and transfer rates
+        run: python postprocess.py
+
       - name: Upload collector snapshot
         uses: actions/upload-artifact@v4
         with:
