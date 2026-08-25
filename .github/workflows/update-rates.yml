@@ -4,8 +4,11 @@ on:
   push:
     branches: [main]
   schedule:
-    # Every 10 minutes, offset from the top of the hour to reduce GitHub scheduler congestion.
-    - cron: '3-59/10 * * * *'
+    # Dushanbe is UTC+5 year-round.
+    # Mon-Fri every 30 minutes from 08:00 through 17:30 local time.
+    - cron: '0,30 3-12 * * 1-5'
+    # Final working-hours check at 18:00 local time.
+    - cron: '0 13 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -42,6 +45,15 @@ jobs:
 
       - name: Normalize cash and transfer rates
         run: python postprocess.py
+
+      # This runs before Pages is redeployed, so the live results.json is still the previous
+      # snapshot and can be used as the comparison baseline.
+      - name: Notify Telegram if Cash or Transfer rates changed
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python telegram_notify.py
 
       - name: Upload collector snapshot
         uses: actions/upload-artifact@v4
