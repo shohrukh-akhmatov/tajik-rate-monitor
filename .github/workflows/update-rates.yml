@@ -10,6 +10,12 @@ on:
     # Final working-hours check at 18:00 local time.
     - cron: '0 13 * * 1-5'
   workflow_dispatch:
+    inputs:
+      telegram_test:
+        description: 'Send a Telegram test snapshot'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -46,13 +52,15 @@ jobs:
       - name: Normalize cash and transfer rates
         run: python postprocess.py
 
-      # This runs before Pages is redeployed, so the live results.json is still the previous
-      # snapshot and can be used as the comparison baseline.
+      # Runs before Pages is redeployed, so live results.json is still the previous snapshot.
+      # Pushes only update/deploy the site and do not send Telegram alerts.
       - name: Notify Telegram if Cash or Transfer rates changed
+        if: github.event_name != 'push'
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TEST: ${{ inputs.telegram_test }}
         run: python telegram_notify.py
 
       - name: Upload collector snapshot
