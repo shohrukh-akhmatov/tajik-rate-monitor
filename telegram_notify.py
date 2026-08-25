@@ -66,13 +66,7 @@ def collect_changes(previous: dict, current: dict) -> list[dict]:
                 old_value = old_rate.get(field_key)
                 new_value = new_rate.get(field_key)
                 if changed(old_value, new_value):
-                    field_changes.append(
-                        {
-                            "field": field_label,
-                            "old": old_value,
-                            "new": new_value,
-                        }
-                    )
+                    field_changes.append({"field": field_label, "old": old_value, "new": new_value})
 
             if field_changes:
                 bank_changes.append(
@@ -90,20 +84,18 @@ def collect_changes(previous: dict, current: dict) -> list[dict]:
     return changes
 
 
-def build_message(changes: list[dict], generated_at: str | None) -> str:
+def parsed_time(generated_at: str | None) -> datetime:
     if generated_at:
         try:
-            dt = datetime.fromisoformat(generated_at).astimezone(TZ)
+            return datetime.fromisoformat(generated_at).astimezone(TZ)
         except ValueError:
-            dt = datetime.now(TZ)
-    else:
-        dt = datetime.now(TZ)
+            pass
+    return datetime.now(TZ)
 
-    lines = [
-        "🔔 RUB→TJS rate change",
-        dt.strftime("%d.%m.%Y %H:%M (Dushanbe)"),
-        "",
-    ]
+
+def build_change_message(changes: list[dict], generated_at: str | None) -> str:
+    dt = parsed_time(generated_at)
+    lines = ["🔔 RUB→TJS rate change", dt.strftime("%d.%m.%Y %H:%M (Dushanbe)"), ""]
 
     for bank in changes:
         lines.append(f"🏦 {bank['name']}")
@@ -122,6 +114,27 @@ def build_message(changes: list[dict], generated_at: str | None) -> str:
     return "\n".join(lines).strip()
 
 
+def build_test_message(current: dict) -> str:
+    dt = parsed_time(current.get("generated_at"))
+    lines = ["✅ Tajik Rate Monitor test", dt.strftime("%d.%m.%Y %H:%M (Dushanbe)"), ""]
+    for bank in current.get("banks", []):
+        rate_lines = []
+        for key, label in CATEGORIES:
+            rate = (bank.get("rates") or {}).get(key) or {}
+            if rate.get("buy_per_1000") is None and rate.get("sell_per_1000") is None:
+                continue
+            rate_lines.append(
+                f"{label}: Buy {fmt(rate.get('buy_per_1000'))} · Sell {fmt(rate.get('sell_per_1000'))}"
+            )
+        if rate_lines:
+            lines.append(f"🏦 {bank.get('name', bank.get('id', 'Bank'))}")
+            lines.extend(rate_lines)
+            lines.append("")
+    lines.append("Values: TJS per 1,000 RUB")
+    lines.append(f"Monitor: {DASHBOARD}")
+    return "\n".join(lines).strip()
+
+
 def send_telegram(text: str) -> None:
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
@@ -131,11 +144,7 @@ def send_telegram(text: str) -> None:
 
     response = requests.post(
         f"https://api.telegram.org/bot{token}/sendMessage",
-        json={
-            "chat_id": chat_id,
-            "text": text,
-            "disable_web_page_preview": True,
-        },
+        json={"chat_id": chat_id, "text": text, "disable_web_page_preview": True},
         timeout=20,
     )
     if not response.ok:
@@ -148,6 +157,13 @@ def main() -> None:
         raise SystemExit("site/results.json does not exist")
 
     current = json.loads(RESULTS.read_text(encoding="utf-8"))
+    test_mode = os.getenv("TELEGRAM_TEST", "").strip().lower() in {"1", "true", "yes", "on"}
+    if test_mode:
+        message = build_test_message(current)
+        print(message)
+        send_telegram(message)
+        return
+
     previous = fetch_previous()
     if not previous:
         print("No previous deployed results available; skipping notification baseline run.")
@@ -158,7 +174,7 @@ def main() -> None:
         print("No Cash/Transfer rate changes detected; no Telegram message sent.")
         return
 
-    message = build_message(changes, current.get("generated_at"))
+    message = build_change_message(changes, current.get("generated_at"))
     print(message)
     send_telegram(message)
 
