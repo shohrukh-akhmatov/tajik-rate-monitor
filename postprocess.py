@@ -68,7 +68,6 @@ async def visible_rub_row(page) -> tuple[list[float], str] | None:
         vals = decimals(text)
         if len(vals) >= 2:
             matches.append((vals, text))
-    # Prefer the last visible RUB row: Amonat keeps the active rate table later in the currency block.
     return matches[-1] if matches else None
 
 
@@ -94,12 +93,18 @@ async def collect_amonat() -> dict[str, dict]:
 
             result: dict[str, dict] = {}
 
-            # Amonat calls the ordinary individual table "Individual". For this monitor it is the cash/retail rate.
+            # Amonat opens on the Individual table by default. Capture it first as the cash/retail rate.
+            row = await visible_rub_row(page)
+            if row:
+                vals, raw = row
+                buy, sell = vals[-2], vals[-1]
+                result["cash"] = rate_record("Cash", buy, sell, raw)
+
+            # If the Individual tab is clickable, re-select it and prefer the refreshed value.
             if await click_label(page, "Individual"):
                 row = await visible_rub_row(page)
                 if row:
                     vals, raw = row
-                    # Individual row contains NBT, Purchase, Sale. Purchase/Sale are the last two values.
                     buy, sell = vals[-2], vals[-1]
                     result["cash"] = rate_record("Cash", buy, sell, raw)
 
@@ -120,7 +125,7 @@ async def collect_amonat() -> dict[str, dict]:
 def normalize_existing(payload: dict) -> None:
     for bank in payload.get("banks", []):
         rates = bank.setdefault("rates", {})
-        # These sites call their ordinary retail/counter rate "Private individuals".
+        # Eskhata and ActivBank call their ordinary counter rate "Private individuals".
         if bank.get("id") in {"eskhata", "activbank"} and "retail" in rates and "cash" not in rates:
             rates["cash"] = dict(rates["retail"])
             rates["cash"]["label"] = "Cash"
