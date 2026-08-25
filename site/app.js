@@ -4,12 +4,15 @@ const fmt = (n,d=2) => n == null ? '—' : Number(n).toFixed(d);
 const rateKey = id => `tajik-rate-monitor:observed:${id}`;
 const statusText = s => ({ok:'LIVE',partial:'PARTIAL',stale:'STALE',error:'ERROR',no_rate:'NO RATE'})[s] || String(s||'').toUpperCase();
 const suitabilityText = s => ({direct_candidate:'DIRECT CANDIDATE',verify_app:'VERIFY APP',experimental:'EXPERIMENTAL',wrong_rate_class:'WRONG RATE CLASS',unsupported:'UNSUPPORTED'})[s] || s;
+const visibleRateKeys = ['cash','transfer'];
 let data = null;
 let historyData = [];
 
 function primaryRate(bank){
-  const key = bank.primary_category;
-  if(key && bank.rates?.[key]?.buy_per_1000 != null) return bank.rates[key].buy_per_1000;
+  if(bank.rates?.transfer?.buy_per_1000 != null) return bank.rates.transfer.buy_per_1000;
+  if(bank.primary_category && visibleRateKeys.includes(bank.primary_category) && bank.rates?.[bank.primary_category]?.buy_per_1000 != null){
+    return bank.rates[bank.primary_category].buy_per_1000;
+  }
   return null;
 }
 function render(){
@@ -30,12 +33,15 @@ function render(){
     const delta = observed && webPrimary ? webPrimary-observed : null;
     const baseForSber = observed || webPrimary;
     const sber = baseForSber ? baseForSber*(1-pct/100) : null;
-    const rows = Object.entries(bank.rates||{}).map(([key,r])=>`
-      <div class="rate-row ${emphasize && key===bank.primary_category?'primary':''}">
-        <div class="label">${r.label || key}${key===bank.primary_category?' ★':''}</div>
+    const displayRates = visibleRateKeys
+      .filter(key => bank.rates?.[key])
+      .map(key => [key, bank.rates[key]]);
+    const rows = displayRates.map(([key,r])=>`
+      <div class="rate-row ${emphasize && key==='transfer'?'primary':''}">
+        <div class="label">${key==='cash'?'Cash':'Transfers'}${key==='transfer'?' ★':''}</div>
         <div class="value"><strong>${fmt(r.buy_per_1000)}</strong><span>BUY / 1,000 RUB</span></div>
         <div class="value"><strong>${fmt(r.sell_per_1000)}</strong><span>SELL / 1,000 RUB</span></div>
-      </div>`).join('') || `<div class="rate-row"><div class="label">No safe rate extracted</div></div>`;
+      </div>`).join('') || `<div class="rate-row"><div class="label">No cash/transfer rate extracted</div></div>`;
 
     card.innerHTML = `
       <div class="bank-head">
@@ -49,8 +55,8 @@ function render(){
         <p>Bank timestamp: ${bank.source_updated_at ? new Date(bank.source_updated_at).toLocaleString() : 'not exposed / not parsed'} · Last success: ${bank.last_success_at ? new Date(bank.last_success_at).toLocaleString() : '—'}</p>
         ${bank.error?`<p>Collector: ${bank.error}</p>`:''}
         <div class="app-compare">
-          <input class="observed" inputmode="decimal" placeholder="Observed app rate / 1000" value="${observed||''}" data-bank="${bank.id}">
-          <div class="delta ${delta==null?'':Math.abs(delta)<=0.05?'good':'bad'}">Web − app<br><strong>${delta==null?'—':(delta>=0?'+':'')+fmt(delta)}</strong></div>
+          <input class="observed" inputmode="decimal" placeholder="Observed app transfer / 1000" value="${observed||''}" data-bank="${bank.id}">
+          <div class="delta ${delta==null?'':Math.abs(delta)<=0.05?'good':'bad'}">Transfer web − app<br><strong>${delta==null?'—':(delta>=0?'+':'')+fmt(delta)}</strong></div>
           <div class="sber">Sber est. −${pct}%<br><strong>${fmt(sber)}</strong></div>
         </div>
       </div>`;
@@ -66,12 +72,16 @@ function render(){
 }
 function renderHistory(){
   const list = $('#history');
-  const items = historyData.slice(-30).reverse();
-  $('#historyCount').textContent = `${historyData.length} stored changes`;
+  const filtered = historyData.map(h=>({
+    ...h,
+    rates:Object.fromEntries(Object.entries(h.rates||{}).filter(([k])=>visibleRateKeys.includes(k)))
+  })).filter(h=>Object.keys(h.rates).length);
+  const items = filtered.slice(-30).reverse();
+  $('#historyCount').textContent = `${filtered.length} cash/transfer changes`;
   list.innerHTML = items.map(h=>{
-    const vals = Object.entries(h.rates||{}).map(([k,v])=>`${k}: ${v.buy==null?'—':fmt(v.buy*1000)}`).join(' · ');
+    const vals = visibleRateKeys.filter(k=>h.rates?.[k]).map(k=>`${k==='cash'?'cash':'transfer'}: ${h.rates[k].buy==null?'—':fmt(h.rates[k].buy*1000)}`).join(' · ');
     return `<div class="history-item"><div class="time">${new Date(h.at).toLocaleString()}</div><strong>${h.name}</strong><div class="change">${vals}</div></div>`;
-  }).join('') || '<p class="sub">History begins after the first successful deployed collection.</p>';
+  }).join('') || '<p class="sub">Cash/transfer history begins after the next successful collections.</p>';
 }
 async function load(){
   $('#refresh').disabled=true;
