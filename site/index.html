@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#0c1118">
+  <title>Tajik Rate Monitor</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">SHOH LABS · DEV TOOL</p>
+        <h1>Tajik Rate Monitor</h1>
+        <p class="sub">Raw RUB→TJS rates from official Tajik bank websites. Values are monitoring inputs, not guaranteed transfer quotes.</p>
+      </div>
+      <button id="refresh" class="refresh">Refresh</button>
+    </header>
+
+    <section class="summary" aria-live="polite">
+      <div><span>Collector</span><strong id="generated">—</strong></div>
+      <div><span>Healthy</span><strong id="healthy">—</strong></div>
+      <div><span>Stale / failed</span><strong id="failed">—</strong></div>
+    </section>
+
+    <section class="controls">
+      <label><input id="onlyPrimary" type="checkbox" checked> Emphasize Somoni candidate rate</label>
+      <label>Sber adjustment <input id="sberPct" type="number" value="1.5" min="0" max="10" step="0.1">%</label>
+    </section>
+
+    <div id="alert" class="alert hidden"></div>
+    <section id="banks" class="bank-grid"></section>
+
+    <section class="history-section">
+      <div class="section-title">
+        <h2>Recent rate changes</h2>
+        <span id="historyCount">—</span>
+      </div>
+      <div id="history" class="history-list"></div>
+    </section>
+
+    <footer>
+      <a href="results.json">Raw results.json</a>
+      <span>·</span>
+      <a href="history.json">history.json</a>
+      <span>·</span>
+      <a href="https://github.com/shohrukh-akhmatov/tajik-rate-monitor">Repository</a>
+    </footer>
+  </main>
+<script src="app.js"></script>
+</body>
+</html>
