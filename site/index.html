@@ -14,7 +14,7 @@
       <div>
         <p class="eyebrow">SHOH LABS · DEV TOOL</p>
         <h1>Tajik Rate Monitor</h1>
-        <p class="sub">Raw RUB→TJS rates from official Tajik bank websites. Values are monitoring inputs, not guaranteed transfer quotes.</p>
+        <p class="sub">Cash and RUB→TJS transfer rates from official Tajik bank websites. Other categories are collected only for diagnostics and are hidden here.</p>
       </div>
       <button id="refresh" class="refresh">Refresh</button>
     </header>
@@ -26,7 +26,7 @@
     </section>
 
     <section class="controls">
-      <label><input id="onlyPrimary" type="checkbox" checked> Emphasize Somoni candidate rate</label>
+      <label><input id="onlyPrimary" type="checkbox" checked> Emphasize transfer rate</label>
       <label>Sber adjustment <input id="sberPct" type="number" value="1.5" min="0" max="10" step="0.1">%</label>
     </section>
 
@@ -35,7 +35,7 @@
 
     <section class="history-section">
       <div class="section-title">
-        <h2>Recent rate changes</h2>
+        <h2>Recent cash / transfer changes</h2>
         <span id="historyCount">—</span>
       </div>
       <div id="history" class="history-list"></div>
