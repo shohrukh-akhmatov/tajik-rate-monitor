@@ -13,6 +13,7 @@ SITE = Path("site")
 RESULTS = SITE / "results.json"
 TZ = ZoneInfo("Asia/Dushanbe")
 AMONAT_URL = "https://www.amonatbonk.tj/en/#3"
+ALIF_URL = "https://alif.tj/en"
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 TajikRateMonitor/1.0"
@@ -71,86 +72,173 @@ async def visible_rub_row(page) -> tuple[list[float], str] | None:
     return matches[-1] if matches else None
 
 
-async def collect_amonat() -> dict[str, dict]:
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=["--disable-dev-shm-usage"])
-        context = await browser.new_context(
-            user_agent=USER_AGENT,
-            locale="en-US",
-            timezone_id="Asia/Dushanbe",
-        )
-        page = await context.new_page()
-        page.set_default_timeout(8000)
-        try:
-            response = await page.goto(AMONAT_URL, wait_until="domcontentloaded", timeout=35000)
-            if response and response.status >= 400:
-                raise RuntimeError(f"HTTP {response.status}")
-            try:
-                await page.wait_for_load_state("networkidle", timeout=10000)
-            except PlaywrightTimeoutError:
-                pass
-            await page.wait_for_timeout(2500)
+async def open_page(context, url: str):
+    page = await context.new_page()
+    page.set_default_timeout(8000)
+    response = await page.goto(url, wait_until="domcontentloaded", timeout=35000)
+    if response and response.status >= 400:
+        raise RuntimeError(f"HTTP {response.status}")
+    try:
+        await page.wait_for_load_state("networkidle", timeout=10000)
+    except PlaywrightTimeoutError:
+        pass
+    await page.wait_for_timeout(2500)
+    return page
 
-            result: dict[str, dict] = {}
 
-            # Amonat opens on the Individual table by default. Capture it first as the cash/retail rate.
+async def collect_amonat(browser) -> dict[str, dict]:
+    context = await browser.new_context(
+        user_agent=USER_AGENT,
+        locale="en-US",
+        timezone_id="Asia/Dushanbe",
+    )
+    try:
+        page = await open_page(context, AMONAT_URL)
+        result: dict[str, dict] = {}
+
+        # Amonat opens on Individual. This is the ordinary retail/cash table.
+        row = await visible_rub_row(page)
+        if row:
+            vals, raw = row
+            result["cash"] = rate_record("Cash", vals[-2], vals[-1], raw)
+
+        if await click_label(page, "Individual"):
             row = await visible_rub_row(page)
             if row:
                 vals, raw = row
-                buy, sell = vals[-2], vals[-1]
-                result["cash"] = rate_record("Cash", buy, sell, raw)
+                result["cash"] = rate_record("Cash", vals[-2], vals[-1], raw)
 
-            # If the Individual tab is clickable, re-select it and prefer the refreshed value.
-            if await click_label(page, "Individual"):
-                row = await visible_rub_row(page)
-                if row:
-                    vals, raw = row
-                    buy, sell = vals[-2], vals[-1]
-                    result["cash"] = rate_record("Cash", buy, sell, raw)
+        # Amonat explicitly calls the incoming-transfer table Remittances.
+        if await click_label(page, "Remittances"):
+            row = await visible_rub_row(page)
+            if row:
+                vals, raw = row
+                result["transfer"] = rate_record("Transfers", vals[-2], vals[-1], raw)
 
-            # The incoming-transfer rate we need is explicitly called "Remittances" by Amonatbank.
-            if await click_label(page, "Remittances"):
-                row = await visible_rub_row(page)
-                if row:
-                    vals, raw = row
-                    buy, sell = vals[-2], vals[-1]
-                    result["transfer"] = rate_record("Transfers", buy, sell, raw)
+        return result
+    finally:
+        await context.close()
 
-            return result
-        finally:
-            await context.close()
-            await browser.close()
+
+async def collect_alif(browser) -> dict[str, dict]:
+    context = await browser.new_context(
+        user_agent=USER_AGENT,
+        locale="en-US",
+        timezone_id="Asia/Dushanbe",
+    )
+    try:
+        page = await open_page(context, ALIF_URL)
+        result: dict[str, dict] = {}
+
+        # Alif's exchange widget exposes Transfers / Cash desks / Non-cash / Cards / NBT.
+        # We retain only the two classes requested for this monitor.
+        transfers_selected = await click_label(page, "Transfers")
+        if transfers_selected:
+            row = await visible_rub_row(page)
+            if row:
+                vals, raw = row
+                result["transfer"] = rate_record("Transfers", vals[-2], vals[-1], raw)
+
+        if await click_label(page, "Cash desks"):
+            row = await visible_rub_row(page)
+            if row:
+                vals, raw = row
+                result["cash"] = rate_record("Cash", vals[-2], vals[-1], raw)
+
+        return result
+    finally:
+        await context.close()
 
 
 def normalize_existing(payload: dict) -> None:
     for bank in payload.get("banks", []):
         rates = bank.setdefault("rates", {})
+        bank_id = bank.get("id")
+
         # Eskhata and ActivBank call their ordinary counter rate "Private individuals".
-        if bank.get("id") in {"eskhata", "activbank"} and "retail" in rates and "cash" not in rates:
+        if bank_id in {"eskhata", "activbank"} and "retail" in rates and "cash" not in rates:
             rates["cash"] = dict(rates["retail"])
             rates["cash"]["label"] = "Cash"
+
+        # Vasl currently publishes one general Exchange Rates table. Treat that as the
+        # ordinary cash/standard bank rate, not as a transfer rate.
+        if bank_id == "vasl" and "generic" in rates:
+            rates["cash"] = dict(rates["generic"])
+            rates["cash"]["label"] = "Cash"
+            bank["primary_category"] = None
+            bank["note"] = (
+                "Vasl publishes one general Exchange Rates table. It is shown as Cash/standard rate; "
+                "no separate transfer rate has been verified."
+            )
+
+
+def apply_special_rates(payload: dict, bank_id: str, source: str, rates: dict[str, dict], note: str) -> None:
+    for bank in payload.get("banks", []):
+        if bank.get("id") != bank_id:
+            continue
+        bank["source"] = source
+        bank["note"] = note
+        if rates:
+            bank["rates"].update(rates)
+            bank["status"] = "ok" if "transfer" in rates else "partial"
+            bank["error"] = None
+            bank["last_success_at"] = datetime.now(TZ).isoformat(timespec="seconds")
+        return
 
 
 async def main() -> None:
     payload = json.loads(RESULTS.read_text(encoding="utf-8"))
     normalize_existing(payload)
 
-    amonat_rates = await collect_amonat()
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, args=["--disable-dev-shm-usage"])
+        try:
+            amonat_rates = await collect_amonat(browser)
+            alif_rates = await collect_alif(browser)
+        finally:
+            await browser.close()
+
+    apply_special_rates(
+        payload,
+        "amonat",
+        AMONAT_URL,
+        amonat_rates,
+        "Amonatbank publishes Individual, Legal entity and Remittances. Remittances is the Somoni transfer-rate source.",
+    )
     for bank in payload.get("banks", []):
-        if bank.get("id") != "amonat":
-            continue
-        bank["source"] = AMONAT_URL
-        bank["note"] = "Amonatbank publishes Individual, Legal entity and Remittances. Remittances is the Somoni transfer-rate source."
-        bank["primary_category"] = "transfer"
-        if amonat_rates:
-            bank["rates"].update(amonat_rates)
-            bank["status"] = "ok" if "transfer" in amonat_rates else "partial"
-            bank["error"] = None if "transfer" in amonat_rates else "Amonat Remittances RUB row not extracted"
-            bank["last_success_at"] = datetime.now(TZ).isoformat(timespec="seconds")
-        break
+        if bank.get("id") == "amonat":
+            bank["primary_category"] = "transfer"
+            if amonat_rates and "transfer" not in amonat_rates:
+                bank["status"] = "partial"
+                bank["error"] = "Amonat Remittances RUB row not extracted"
+            break
+
+    apply_special_rates(
+        payload,
+        "alif",
+        ALIF_URL,
+        alif_rates,
+        "Alif publishes Transfers, Cash desks, Non-cash, Cards and NBT. Transfers is the Somoni transfer-rate source.",
+    )
+    for bank in payload.get("banks", []):
+        if bank.get("id") == "alif":
+            bank["primary_category"] = "transfer"
+            bank["suitability"] = "direct_candidate"
+            if alif_rates and "transfer" not in alif_rates:
+                bank["status"] = "partial"
+                bank["error"] = "Alif Transfers RUB row not extracted"
+            break
 
     RESULTS.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"amonat": {k: v["buy_per_1000"] for k, v in amonat_rates.items()}}, ensure_ascii=False))
+    print(
+        json.dumps(
+            {
+                "amonat": {k: v["buy_per_1000"] for k, v in amonat_rates.items()},
+                "alif": {k: v["buy_per_1000"] for k, v in alif_rates.items()},
+            },
+            ensure_ascii=False,
+        )
+    )
 
 
 if __name__ == "__main__":
