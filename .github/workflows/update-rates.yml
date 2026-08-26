@@ -53,14 +53,14 @@ jobs:
         run: python postprocess.py
 
       # Runs before Pages is redeployed, so live results.json is still the previous snapshot.
-      # Normal pushes do not send Telegram alerts. A [telegram-test] commit is an explicit test.
+      # Pushes only update/deploy the site and do not send Telegram alerts.
       - name: Notify Telegram if Cash or Transfer rates changed
-        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[telegram-test]')
+        if: github.event_name != 'push'
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_TEST: ${{ contains(github.event.head_commit.message, '[telegram-test]') || inputs.telegram_test }}
+          TELEGRAM_TEST: ${{ inputs.telegram_test }}
         run: python telegram_notify.py
 
       - name: Upload collector snapshot
