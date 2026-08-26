@@ -42,13 +42,15 @@ def rate_record(label: str, buy: float, sell: float, raw: str) -> dict:
 
 
 async def click_label(page, label: str) -> bool:
-    candidates = page.get_by_text(label, exact=True)
+    # Some widgets wrap the tab text or add whitespace, so exact=True is too brittle.
+    pattern = re.compile(rf"^\s*{re.escape(label)}\s*$", re.IGNORECASE)
+    candidates = page.get_by_text(pattern)
     for i in range(await candidates.count()):
         item = candidates.nth(i)
         try:
             if await item.is_visible():
                 await item.click(timeout=3500)
-                await page.wait_for_timeout(1000)
+                await page.wait_for_timeout(1400)
                 return True
         except Exception:
             continue
@@ -70,6 +72,43 @@ async def visible_rub_row(page) -> tuple[list[float], str] | None:
         if len(vals) >= 2:
             matches.append((vals, text))
     return matches[-1] if matches else None
+
+
+async def visible_rub_block(page) -> tuple[list[float], str] | None:
+    """Find RUB buy/sell in rendered text when the currency widget is built with divs.
+
+    Alif's current exchange-rate widget is not consistently represented by <tr> rows
+    in headless Chromium. body.inner_text() contains only rendered text, so scan a
+    small window around each visible RUB label and keep windows with two plausible
+    RUB rates (0.05..0.20 TJS per RUB).
+    """
+    try:
+        body_text = await page.locator("body").inner_text(timeout=5000)
+    except Exception:
+        return None
+
+    lines = [" ".join(line.split()) for line in body_text.splitlines() if line.strip()]
+    matches: list[tuple[list[float], str]] = []
+    for i, line in enumerate(lines):
+        if not re.search(r"(^|\s)(RUB|РУБ)(\s|$)", line, re.IGNORECASE):
+            continue
+        # Rates normally follow the currency label. Include a little context before it
+        # because some responsive layouts place Purchase/Sale labels on the prior line.
+        window = lines[max(0, i - 2) : min(len(lines), i + 9)]
+        raw = " ".join(window)
+        vals = decimals(raw)
+        if len(vals) >= 2:
+            matches.append((vals[:2], raw))
+
+    return matches[0] if matches else None
+
+
+async def visible_rub_rate(page) -> tuple[list[float], str] | None:
+    # Prefer semantic table rows where available; fall back to rendered widget text.
+    row = await visible_rub_row(page)
+    if row:
+        return row
+    return await visible_rub_block(page)
 
 
 async def open_page(context, url: str):
@@ -134,13 +173,13 @@ async def collect_alif(browser) -> dict[str, dict]:
         # We retain only the two classes requested for this monitor.
         transfers_selected = await click_label(page, "Transfers")
         if transfers_selected:
-            row = await visible_rub_row(page)
+            row = await visible_rub_rate(page)
             if row:
                 vals, raw = row
                 result["transfer"] = rate_record("Transfers", vals[-2], vals[-1], raw)
 
         if await click_label(page, "Cash desks"):
-            row = await visible_rub_row(page)
+            row = await visible_rub_rate(page)
             if row:
                 vals, raw = row
                 result["cash"] = rate_record("Cash", vals[-2], vals[-1], raw)
@@ -224,9 +263,9 @@ async def main() -> None:
         if bank.get("id") == "alif":
             bank["primary_category"] = "transfer"
             bank["suitability"] = "direct_candidate"
-            if alif_rates and "transfer" not in alif_rates:
+            if "transfer" not in alif_rates:
                 bank["status"] = "partial"
-                bank["error"] = "Alif Transfers RUB row not extracted"
+                bank["error"] = "Alif Transfers RUB rate not extracted"
             break
 
     RESULTS.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
