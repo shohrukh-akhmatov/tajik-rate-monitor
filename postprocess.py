@@ -42,7 +42,6 @@ def rate_record(label: str, buy: float, sell: float, raw: str) -> dict:
 
 
 async def click_label(page, label: str) -> bool:
-    # Some widgets wrap the tab text or add whitespace, so exact=True is too brittle.
     pattern = re.compile(rf"^\s*{re.escape(label)}\s*$", re.IGNORECASE)
     candidates = page.get_by_text(pattern)
     for i in range(await candidates.count()):
@@ -75,13 +74,6 @@ async def visible_rub_row(page) -> tuple[list[float], str] | None:
 
 
 async def visible_rub_block(page) -> tuple[list[float], str] | None:
-    """Find RUB buy/sell in rendered text when the currency widget is built with divs.
-
-    Alif's current exchange-rate widget is not consistently represented by <tr> rows
-    in headless Chromium. body.inner_text() contains only rendered text, so scan a
-    small window around each visible RUB label and keep windows with two plausible
-    RUB rates (0.05..0.20 TJS per RUB).
-    """
     try:
         body_text = await page.locator("body").inner_text(timeout=5000)
     except Exception:
@@ -92,8 +84,6 @@ async def visible_rub_block(page) -> tuple[list[float], str] | None:
     for i, line in enumerate(lines):
         if not re.search(r"(^|\s)(RUB|РУБ)(\s|$)", line, re.IGNORECASE):
             continue
-        # Rates normally follow the currency label. Include a little context before it
-        # because some responsive layouts place Purchase/Sale labels on the prior line.
         window = lines[max(0, i - 2) : min(len(lines), i + 9)]
         raw = " ".join(window)
         vals = decimals(raw)
@@ -104,7 +94,6 @@ async def visible_rub_block(page) -> tuple[list[float], str] | None:
 
 
 async def visible_rub_rate(page) -> tuple[list[float], str] | None:
-    # Prefer semantic table rows where available; fall back to rendered widget text.
     row = await visible_rub_row(page)
     if row:
         return row
@@ -135,7 +124,6 @@ async def collect_amonat(browser) -> dict[str, dict]:
         page = await open_page(context, AMONAT_URL)
         result: dict[str, dict] = {}
 
-        # Amonat opens on Individual. This is the ordinary retail/cash table.
         row = await visible_rub_row(page)
         if row:
             vals, raw = row
@@ -147,7 +135,6 @@ async def collect_amonat(browser) -> dict[str, dict]:
                 vals, raw = row
                 result["cash"] = rate_record("Cash", vals[-2], vals[-1], raw)
 
-        # Amonat explicitly calls the incoming-transfer table Remittances.
         if await click_label(page, "Remittances"):
             row = await visible_rub_row(page)
             if row:
@@ -165,12 +152,28 @@ async def collect_alif(browser) -> dict[str, dict]:
         locale="en-US",
         timezone_id="Asia/Dushanbe",
     )
+    interesting_responses: list[str] = []
     try:
-        page = await open_page(context, ALIF_URL)
-        result: dict[str, dict] = {}
+        page = await context.new_page()
+        page.set_default_timeout(8000)
 
-        # Alif's exchange widget exposes Transfers / Cash desks / Non-cash / Cards / NBT.
-        # We retain only the two classes requested for this monitor.
+        def remember_response(response):
+            url = response.url
+            low = url.lower()
+            if any(word in low for word in ("rate", "currency", "exchange", "kurs")):
+                interesting_responses.append(f"{response.status} {url}")
+
+        page.on("response", remember_response)
+        response = await page.goto(ALIF_URL, wait_until="domcontentloaded", timeout=35000)
+        if response and response.status >= 400:
+            raise RuntimeError(f"HTTP {response.status}")
+        try:
+            await page.wait_for_load_state("networkidle", timeout=10000)
+        except PlaywrightTimeoutError:
+            pass
+        await page.wait_for_timeout(5000)
+
+        result: dict[str, dict] = {}
         transfers_selected = await click_label(page, "Transfers")
         if transfers_selected:
             row = await visible_rub_rate(page)
@@ -184,6 +187,28 @@ async def collect_alif(browser) -> dict[str, dict]:
                 vals, raw = row
                 result["cash"] = rate_record("Cash", vals[-2], vals[-1], raw)
 
+        if not result:
+            try:
+                body = await page.locator("body").inner_text(timeout=5000)
+            except Exception as exc:
+                body = f"<body read failed: {exc}>"
+            compact = " | ".join(line.strip() for line in body.splitlines() if line.strip())
+            marker = compact.lower().find("exchange rate")
+            if marker < 0:
+                marker = compact.lower().find("loading")
+            excerpt = compact[max(0, marker - 250) : marker + 1200] if marker >= 0 else compact[:1200]
+            print(
+                "ALIF_DIAGNOSTIC="
+                + json.dumps(
+                    {
+                        "transfers_selected": transfers_selected,
+                        "body_excerpt": excerpt,
+                        "responses": interesting_responses[-30:],
+                    },
+                    ensure_ascii=False,
+                )
+            )
+
         return result
     finally:
         await context.close()
@@ -194,13 +219,10 @@ def normalize_existing(payload: dict) -> None:
         rates = bank.setdefault("rates", {})
         bank_id = bank.get("id")
 
-        # Eskhata and ActivBank call their ordinary counter rate "Private individuals".
         if bank_id in {"eskhata", "activbank"} and "retail" in rates and "cash" not in rates:
             rates["cash"] = dict(rates["retail"])
             rates["cash"]["label"] = "Cash"
 
-        # Vasl currently publishes one general Exchange Rates table. Treat that as the
-        # ordinary cash/standard bank rate, not as a transfer rate.
         if bank_id == "vasl" and "generic" in rates:
             rates["cash"] = dict(rates["generic"])
             rates["cash"]["label"] = "Cash"
