@@ -14,6 +14,7 @@ PUBLIC_RESULTS = "https://shohrukh-akhmatov.github.io/tajik-rate-monitor/results
 DASHBOARD = "https://shohrukh-akhmatov.github.io/tajik-rate-monitor/"
 CATEGORIES = (("transfer", "Transfer"), ("cash", "Cash"))
 FIELDS = (("buy_per_1000", "Buy"), ("sell_per_1000", "Sell"))
+CARD_CURRENCIES = ("USD", "EUR")
 
 
 def fetch_previous() -> dict | None:
@@ -22,7 +23,7 @@ def fetch_previous() -> dict | None:
             PUBLIC_RESULTS,
             params={"t": int(datetime.now().timestamp())},
             timeout=12,
-            headers={"Cache-Control": "no-cache", "User-Agent": "TajikRateMonitor/1.0"},
+            headers={"Cache-Control": "no-cache", "User-Agent": "TajikRateMonitor/1.1"},
         )
         if response.ok:
             return response.json()
@@ -37,14 +38,18 @@ def bank_map(payload: dict | None) -> dict[str, dict]:
     return {bank.get("id"): bank for bank in payload.get("banks", []) if bank.get("id")}
 
 
-def changed(old: float | None, new: float | None) -> bool:
+def changed(old: float | None, new: float | None, threshold: float = 0.005) -> bool:
     if old is None or new is None:
         return False
-    return abs(float(old) - float(new)) >= 0.005
+    return abs(float(old) - float(new)) >= threshold
 
 
 def fmt(value: float | None) -> str:
     return "—" if value is None else f"{float(value):.2f}"
+
+
+def fmt_fx(value: float | None) -> str:
+    return "—" if value is None else f"{float(value):.4f}"
 
 
 def collect_changes(previous: dict, current: dict) -> list[dict]:
@@ -56,7 +61,7 @@ def collect_changes(previous: dict, current: dict) -> list[dict]:
         if not old_bank:
             continue
 
-        bank_changes: list[dict] = []
+        rub_changes: list[dict] = []
         for category_key, category_label in CATEGORIES:
             old_rate = (old_bank.get("rates") or {}).get(category_key) or {}
             new_rate = (bank.get("rates") or {}).get(category_key) or {}
@@ -69,7 +74,7 @@ def collect_changes(previous: dict, current: dict) -> list[dict]:
                     field_changes.append({"field": field_label, "old": old_value, "new": new_value})
 
             if field_changes:
-                bank_changes.append(
+                rub_changes.append(
                     {
                         "category": category_label,
                         "changes": field_changes,
@@ -78,8 +83,25 @@ def collect_changes(previous: dict, current: dict) -> list[dict]:
                     }
                 )
 
-        if bank_changes:
-            changes.append({"name": bank.get("name", bank.get("id", "Bank")), "changes": bank_changes})
+        card_changes: list[dict] = []
+        old_card = old_bank.get("card_buy") or {}
+        new_card = bank.get("card_buy") or {}
+        for currency in CARD_CURRENCIES:
+            old_value = (old_card.get(currency) or {}).get("buy")
+            new_value = (new_card.get(currency) or {}).get("buy")
+            if changed(old_value, new_value, threshold=0.00005):
+                card_changes.append(
+                    {"currency": currency, "old": old_value, "new": new_value}
+                )
+
+        if rub_changes or card_changes:
+            changes.append(
+                {
+                    "name": bank.get("name", bank.get("id", "Bank")),
+                    "rub_changes": rub_changes,
+                    "card_changes": card_changes,
+                }
+            )
 
     return changes
 
@@ -95,18 +117,22 @@ def parsed_time(generated_at: str | None) -> datetime:
 
 def build_change_message(changes: list[dict], generated_at: str | None) -> str:
     dt = parsed_time(generated_at)
-    lines = ["🔔 RUB→TJS rate change", dt.strftime("%d.%m.%Y %H:%M (Dushanbe)"), ""]
+    lines = ["🔔 Tajik bank rate change", dt.strftime("%d.%m.%Y %H:%M (Dushanbe)"), ""]
 
     for bank in changes:
         lines.append(f"🏦 {bank['name']}")
-        for category in bank["changes"]:
+        for category in bank["rub_changes"]:
             parts = [
                 f"{item['field']} {fmt(item['old'])} → {fmt(item['new'])}"
                 for item in category["changes"]
             ]
-            lines.append(f"{category['category']}: " + " | ".join(parts))
+            lines.append(f"RUB {category['category']}: " + " | ".join(parts))
             lines.append(
                 f"Current: Buy {fmt(category['current_buy'])} · Sell {fmt(category['current_sell'])} / 1,000 RUB"
+            )
+        for item in bank["card_changes"]:
+            lines.append(
+                f"{item['currency']} Card Buy: {fmt_fx(item['old'])} → {fmt_fx(item['new'])} TJS"
             )
         lines.append("")
 
@@ -124,13 +150,24 @@ def build_test_message(current: dict) -> str:
             if rate.get("buy_per_1000") is None and rate.get("sell_per_1000") is None:
                 continue
             rate_lines.append(
-                f"{label}: Buy {fmt(rate.get('buy_per_1000'))} · Sell {fmt(rate.get('sell_per_1000'))}"
+                f"RUB {label}: Buy {fmt(rate.get('buy_per_1000'))} · Sell {fmt(rate.get('sell_per_1000'))}"
             )
+
+        card = bank.get("card_buy") or {}
+        card_parts = []
+        for currency in CARD_CURRENCIES:
+            buy = (card.get(currency) or {}).get("buy")
+            if buy is not None:
+                card_parts.append(f"{currency} {fmt_fx(buy)}")
+        if card_parts:
+            rate_lines.append("Card Buy: " + " · ".join(card_parts))
+
         if rate_lines:
             lines.append(f"🏦 {bank.get('name', bank.get('id', 'Bank'))}")
             lines.extend(rate_lines)
             lines.append("")
-    lines.append("Values: TJS per 1,000 RUB")
+    lines.append("RUB values: TJS per 1,000 RUB")
+    lines.append("USD/EUR Card Buy values: TJS per 1 unit")
     lines.append(f"Monitor: {DASHBOARD}")
     return "\n".join(lines).strip()
 
@@ -171,7 +208,7 @@ def main() -> None:
 
     changes = collect_changes(previous, current)
     if not changes:
-        print("No Cash/Transfer rate changes detected; no Telegram message sent.")
+        print("No RUB Cash/Transfer or USD/EUR Card Buy changes detected; no Telegram message sent.")
         return
 
     message = build_change_message(changes, current.get("generated_at"))
