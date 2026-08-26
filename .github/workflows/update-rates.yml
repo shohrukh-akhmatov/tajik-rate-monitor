@@ -52,9 +52,12 @@ jobs:
       - name: Normalize cash and transfer rates
         run: python postprocess.py
 
+      - name: Collect Oriyon USD EUR card buy rates
+        run: python oriyon_card.py
+
       # Runs before Pages is redeployed, so live results.json is still the previous snapshot.
       # Pushes only update/deploy the site and do not send Telegram alerts.
-      - name: Notify Telegram if Cash or Transfer rates changed
+      - name: Notify Telegram on monitored rate changes
         if: github.event_name != 'push'
         continue-on-error: true
         env:
