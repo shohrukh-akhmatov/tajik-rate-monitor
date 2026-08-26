@@ -14,6 +14,7 @@ RESULTS = SITE / "results.json"
 TZ = ZoneInfo("Asia/Dushanbe")
 AMONAT_URL = "https://www.amonatbonk.tj/en/#3"
 ALIF_URL = "https://alif.tj/en"
+ALIF_API = "https://alif.tj/api/rates"
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 TajikRateMonitor/1.0"
@@ -152,28 +153,16 @@ async def collect_alif(browser) -> dict[str, dict]:
         locale="en-US",
         timezone_id="Asia/Dushanbe",
     )
-    interesting_responses: list[str] = []
     try:
-        page = await context.new_page()
-        page.set_default_timeout(8000)
-
-        def remember_response(response):
-            url = response.url
-            low = url.lower()
-            if any(word in low for word in ("rate", "currency", "exchange", "kurs")):
-                interesting_responses.append(f"{response.status} {url}")
-
-        page.on("response", remember_response)
-        response = await page.goto(ALIF_URL, wait_until="domcontentloaded", timeout=35000)
-        if response and response.status >= 400:
-            raise RuntimeError(f"HTTP {response.status}")
-        try:
-            await page.wait_for_load_state("networkidle", timeout=10000)
-        except PlaywrightTimeoutError:
-            pass
-        await page.wait_for_timeout(5000)
-
+        page = await open_page(context, ALIF_URL)
         result: dict[str, dict] = {}
+
+        # First inspect/use the same public JSON endpoint used by Alif's own website.
+        api_response = await context.request.get(ALIF_API, timeout=15000)
+        api_text = await api_response.text()
+        print(f"ALIF_API_STATUS={api_response.status}")
+        print("ALIF_API_BODY=" + api_text[:12000])
+
         transfers_selected = await click_label(page, "Transfers")
         if transfers_selected:
             row = await visible_rub_rate(page)
@@ -186,28 +175,6 @@ async def collect_alif(browser) -> dict[str, dict]:
             if row:
                 vals, raw = row
                 result["cash"] = rate_record("Cash", vals[-2], vals[-1], raw)
-
-        if not result:
-            try:
-                body = await page.locator("body").inner_text(timeout=5000)
-            except Exception as exc:
-                body = f"<body read failed: {exc}>"
-            compact = " | ".join(line.strip() for line in body.splitlines() if line.strip())
-            marker = compact.lower().find("exchange rate")
-            if marker < 0:
-                marker = compact.lower().find("loading")
-            excerpt = compact[max(0, marker - 250) : marker + 1200] if marker >= 0 else compact[:1200]
-            print(
-                "ALIF_DIAGNOSTIC="
-                + json.dumps(
-                    {
-                        "transfers_selected": transfers_selected,
-                        "body_excerpt": excerpt,
-                        "responses": interesting_responses[-30:],
-                    },
-                    ensure_ascii=False,
-                )
-            )
 
         return result
     finally:
