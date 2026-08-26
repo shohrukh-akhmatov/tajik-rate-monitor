@@ -42,6 +42,14 @@ def rate_record(label: str, buy: float, sell: float, raw: str) -> dict:
     }
 
 
+def numeric(value) -> float | None:
+    try:
+        result = float(str(value).replace(",", "."))
+    except (TypeError, ValueError):
+        return None
+    return result if 0.01 <= result <= 20 else None
+
+
 async def click_label(page, label: str) -> bool:
     pattern = re.compile(rf"^\s*{re.escape(label)}\s*$", re.IGNORECASE)
     candidates = page.get_by_text(pattern)
@@ -148,33 +156,62 @@ async def collect_amonat(browser) -> dict[str, dict]:
 
 
 async def collect_alif(browser) -> dict[str, dict]:
+    """Collect the same official JSON data used by Alif's public exchange widget."""
     context = await browser.new_context(
         user_agent=USER_AGENT,
         locale="en-US",
         timezone_id="Asia/Dushanbe",
     )
     try:
-        page = await open_page(context, ALIF_URL)
         result: dict[str, dict] = {}
 
-        # First inspect/use the same public JSON endpoint used by Alif's own website.
-        api_response = await context.request.get(ALIF_API, timeout=15000)
-        api_text = await api_response.text()
-        print(f"ALIF_API_STATUS={api_response.status}")
-        print("ALIF_API_BODY=" + api_text[:12000])
+        try:
+            response = await context.request.get(ALIF_API, timeout=15000)
+            if response.ok:
+                payload = await response.json()
+                rub = next(
+                    (
+                        item
+                        for item in payload.get("localRates", [])
+                        if str(item.get("name", "")).upper() == "RUB"
+                        or str(item.get("currencyCode", "")) == "810"
+                    ),
+                    None,
+                )
+                if rub:
+                    raw = json.dumps(rub, ensure_ascii=False, separators=(",", ":"))
+                    transfer_buy = numeric(rub.get("moneyTransferBuyValue"))
+                    transfer_sell = numeric(rub.get("moneyTransferTradeValue"))
+                    cash_buy = numeric(rub.get("buyValue"))
+                    cash_sell = numeric(rub.get("sellValue"))
 
-        transfers_selected = await click_label(page, "Transfers")
-        if transfers_selected:
-            row = await visible_rub_rate(page)
-            if row:
-                vals, raw = row
-                result["transfer"] = rate_record("Transfers", vals[-2], vals[-1], raw)
+                    if transfer_buy is not None and transfer_sell is not None:
+                        result["transfer"] = rate_record(
+                            "Transfers", transfer_buy, transfer_sell, raw
+                        )
+                    if cash_buy is not None and cash_sell is not None:
+                        result["cash"] = rate_record("Cash", cash_buy, cash_sell, raw)
+        except Exception as exc:
+            print(f"Alif API collection failed; trying rendered page fallback: {exc}")
 
-        if await click_label(page, "Cash desks"):
-            row = await visible_rub_rate(page)
-            if row:
-                vals, raw = row
-                result["cash"] = rate_record("Cash", vals[-2], vals[-1], raw)
+        # Defensive fallback in case Alif changes or temporarily blocks the JSON endpoint.
+        if "transfer" not in result or "cash" not in result:
+            try:
+                page = await open_page(context, ALIF_URL)
+                if "transfer" not in result and await click_label(page, "Transfers"):
+                    row = await visible_rub_rate(page)
+                    if row:
+                        vals, raw = row
+                        result["transfer"] = rate_record(
+                            "Transfers", vals[-2], vals[-1], raw
+                        )
+                if "cash" not in result and await click_label(page, "Cash desks"):
+                    row = await visible_rub_rate(page)
+                    if row:
+                        vals, raw = row
+                        result["cash"] = rate_record("Cash", vals[-2], vals[-1], raw)
+            except Exception as exc:
+                print(f"Alif rendered-page fallback failed: {exc}")
 
         return result
     finally:
@@ -244,9 +281,9 @@ async def main() -> None:
     apply_special_rates(
         payload,
         "alif",
-        ALIF_URL,
+        ALIF_API,
         alif_rates,
-        "Alif publishes Transfers, Cash desks, Non-cash, Cards and NBT. Transfers is the Somoni transfer-rate source.",
+        "Alif's public website loads rates from its official /api/rates endpoint. moneyTransferBuyValue/moneyTransferTradeValue are used for Transfers; buyValue/sellValue for Cash desks.",
     )
     for bank in payload.get("banks", []):
         if bank.get("id") == "alif":
