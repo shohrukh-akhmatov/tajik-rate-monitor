@@ -59,9 +59,9 @@ jobs:
         run: python oriyon_card.py
 
       # Runs before Pages is redeployed, so live results.json is still the previous snapshot.
-      # Pushes only update/deploy the site and do not send Telegram alerts.
+      # Run change detection for every collector execution so a push cannot silently
+      # deploy a changed rate and consume the notification baseline.
       - name: Notify Telegram on monitored rate changes
-        if: github.event_name != 'push'
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
