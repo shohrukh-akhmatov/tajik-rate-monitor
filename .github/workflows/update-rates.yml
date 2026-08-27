@@ -4,13 +4,10 @@ on:
   push:
     branches: [main]
   schedule:
-    # GitHub supports IANA time zones for scheduled workflows.
-    # Mon-Fri every 30 minutes during Dushanbe working hours.
-    # :17/:47 avoids the busiest start-of-hour GitHub Actions period.
-    - cron: '17,47 8-17 * * 1-5'
-      timezone: 'Asia/Dushanbe'
-    # Final working-hours check at 18:17 Dushanbe time.
-    - cron: '17 18 * * 1-5'
+    # Native Dushanbe time. One simple cron entry reduces scheduler ambiguity.
+    # Mon-Fri every 30 minutes from 08:23 through 17:53 local time.
+    # Odd minutes avoid GitHub's documented start-of-hour high-load period.
+    - cron: '23,53 8-17 * * 1-5'
       timezone: 'Asia/Dushanbe'
   workflow_dispatch:
     inputs:
