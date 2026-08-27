@@ -4,12 +4,14 @@ on:
   push:
     branches: [main]
   schedule:
-    # Dushanbe is UTC+5 year-round.
-    # Mon-Fri every 30 minutes, offset from the busiest GitHub cron minutes.
-    # 03:10 UTC = 08:10 Dushanbe; 12:40 UTC = 17:40 Dushanbe.
-    - cron: '10,40 3-12 * * 1-5'
-    # Final working-hours check at 18:10 Dushanbe (13:10 UTC).
-    - cron: '10 13 * * 1-5'
+    # GitHub supports IANA time zones for scheduled workflows.
+    # Mon-Fri every 30 minutes during Dushanbe working hours.
+    # :17/:47 avoids the busiest start-of-hour GitHub Actions period.
+    - cron: '17,47 8-17 * * 1-5'
+      timezone: 'Asia/Dushanbe'
+    # Final working-hours check at 18:17 Dushanbe time.
+    - cron: '17 18 * * 1-5'
+      timezone: 'Asia/Dushanbe'
   workflow_dispatch:
     inputs:
       telegram_test:
