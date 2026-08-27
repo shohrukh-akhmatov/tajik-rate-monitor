@@ -5,10 +5,11 @@ on:
     branches: [main]
   schedule:
     # Dushanbe is UTC+5 year-round.
-    # Mon-Fri every 30 minutes from 08:00 through 17:30 local time.
-    - cron: '0,30 3-12 * * 1-5'
-    # Final working-hours check at 18:00 local time.
-    - cron: '0 13 * * 1-5'
+    # Mon-Fri every 30 minutes, offset from the busiest GitHub cron minutes.
+    # 03:10 UTC = 08:10 Dushanbe; 12:40 UTC = 17:40 Dushanbe.
+    - cron: '10,40 3-12 * * 1-5'
+    # Final working-hours check at 18:10 Dushanbe (13:10 UTC).
+    - cron: '10 13 * * 1-5'
   workflow_dispatch:
     inputs:
       telegram_test:
