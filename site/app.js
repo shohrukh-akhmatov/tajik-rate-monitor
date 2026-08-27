@@ -7,6 +7,7 @@ const suitabilityText = s => ({direct_candidate:'DIRECT CANDIDATE',verify_app:'V
 const visibleRateKeys = ['cash','transfer'];
 let data = null;
 let historyData = [];
+let refreshResetTimer = null;
 
 function primaryRate(bank){
   if(bank.rates?.transfer?.buy_per_1000 != null) return bank.rates.transfer.buy_per_1000;
@@ -83,18 +84,47 @@ function renderHistory(){
     return `<div class="history-item"><div class="time">${new Date(h.at).toLocaleString()}</div><strong>${h.name}</strong><div class="change">${vals}</div></div>`;
   }).join('') || '<p class="sub">Cash/transfer history begins after the next successful collections.</p>';
 }
-async function load(){
-  $('#refresh').disabled=true;
+
+function setRefreshLabel(text, resetAfterMs=null){
+  const button = $('#refresh');
+  button.textContent = text;
+  if(refreshResetTimer) clearTimeout(refreshResetTimer);
+  if(resetAfterMs){
+    refreshResetTimer = setTimeout(()=>{
+      button.textContent = 'Refresh';
+      refreshResetTimer = null;
+    }, resetAfterMs);
+  }
+}
+
+async function load(manual=false){
+  const button = $('#refresh');
+  const previousGeneratedAt = data?.generated_at || null;
+  button.disabled=true;
+  button.setAttribute('aria-busy','true');
+  if(manual) setRefreshLabel('Refreshing…');
   try{
     const t=Date.now();
     const [r,h]=await Promise.all([fetch(`results.json?t=${t}`,{cache:'no-store'}),fetch(`history.json?t=${t}`,{cache:'no-store'})]);
     if(!r.ok) throw new Error(`results.json HTTP ${r.status}`);
-    data=await r.json(); historyData=h.ok?await h.json():[];
-    $('#alert').classList.add('hidden'); render();
-  }catch(e){ $('#alert').textContent=`Could not load collector results: ${e.message}`; $('#alert').classList.remove('hidden'); }
-  finally{$('#refresh').disabled=false;}
+    const nextData=await r.json();
+    historyData=h.ok?await h.json():[];
+    data=nextData;
+    $('#alert').classList.add('hidden');
+    render();
+    if(manual){
+      setRefreshLabel(previousGeneratedAt && previousGeneratedAt===data.generated_at ? 'No newer data' : 'Updated ✓', 1600);
+    }
+  }catch(e){
+    $('#alert').textContent=`Could not load collector results: ${e.message}`;
+    $('#alert').classList.remove('hidden');
+    if(manual) setRefreshLabel('Retry', 1800);
+  }finally{
+    button.disabled=false;
+    button.removeAttribute('aria-busy');
+  }
 }
-$('#refresh').addEventListener('click',load);
+$('#refresh').addEventListener('click',()=>load(true));
 $('#onlyPrimary').addEventListener('change',render);
 $('#sberPct').addEventListener('change',render);
 load();
