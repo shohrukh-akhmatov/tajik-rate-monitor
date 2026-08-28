@@ -5,9 +5,14 @@ const rateKey = id => `tajik-rate-monitor:observed:${id}`;
 const statusText = s => ({ok:'LIVE',partial:'PARTIAL',stale:'STALE',error:'ERROR',no_rate:'NO RATE'})[s] || String(s||'').toUpperCase();
 const suitabilityText = s => ({direct_candidate:'DIRECT CANDIDATE',verify_app:'VERIFY APP',experimental:'EXPERIMENTAL',wrong_rate_class:'WRONG RATE CLASS',unsupported:'UNSUPPORTED'})[s] || s;
 const visibleRateKeys = ['cash','transfer'];
+const RESCAN_ENDPOINT = 'https://iufslbdtryxspuwsfbqn.supabase.co/functions/v1/rescan-rates';
+const RESCAN_POLL_MS = 8000;
+const RESCAN_TIMEOUT_MS = 4 * 60 * 1000;
 let data = null;
 let historyData = [];
 let refreshResetTimer = null;
+
+function sleep(ms){ return new Promise(resolve=>setTimeout(resolve, ms)); }
 
 function primaryRate(bank){
   if(bank.rates?.transfer?.buy_per_1000 != null) return bank.rates.transfer.buy_per_1000;
@@ -91,40 +96,96 @@ function setRefreshLabel(text, resetAfterMs=null){
   if(refreshResetTimer) clearTimeout(refreshResetTimer);
   if(resetAfterMs){
     refreshResetTimer = setTimeout(()=>{
-      button.textContent = 'Refresh';
+      button.textContent = 'Rescan rates';
       refreshResetTimer = null;
     }, resetAfterMs);
   }
 }
 
-async function load(manual=false){
-  const button = $('#refresh');
-  const previousGeneratedAt = data?.generated_at || null;
-  button.disabled=true;
-  button.setAttribute('aria-busy','true');
-  if(manual) setRefreshLabel('Refreshing…');
+async function fetchSnapshot(){
+  const t=Date.now();
+  const [r,h]=await Promise.all([
+    fetch(`results.json?t=${t}`,{cache:'no-store'}),
+    fetch(`history.json?t=${t}`,{cache:'no-store'})
+  ]);
+  if(!r.ok) throw new Error(`results.json HTTP ${r.status}`);
+  const nextData=await r.json();
+  historyData=h.ok?await h.json():[];
+  data=nextData;
+  $('#alert').classList.add('hidden');
+  render();
+  return nextData;
+}
+
+async function load(){
   try{
-    const t=Date.now();
-    const [r,h]=await Promise.all([fetch(`results.json?t=${t}`,{cache:'no-store'}),fetch(`history.json?t=${t}`,{cache:'no-store'})]);
-    if(!r.ok) throw new Error(`results.json HTTP ${r.status}`);
-    const nextData=await r.json();
-    historyData=h.ok?await h.json():[];
-    data=nextData;
-    $('#alert').classList.add('hidden');
-    render();
-    if(manual){
-      setRefreshLabel(previousGeneratedAt && previousGeneratedAt===data.generated_at ? 'No newer data' : 'Updated ✓', 1600);
-    }
+    await fetchSnapshot();
   }catch(e){
     $('#alert').textContent=`Could not load collector results: ${e.message}`;
     $('#alert').classList.remove('hidden');
-    if(manual) setRefreshLabel('Retry', 1800);
+  }
+}
+
+async function waitForNewSnapshot(previousGeneratedAt){
+  const started=Date.now();
+  while(Date.now()-started < RESCAN_TIMEOUT_MS){
+    await sleep(RESCAN_POLL_MS);
+    try{
+      const next=await fetchSnapshot();
+      if(next?.generated_at && next.generated_at !== previousGeneratedAt) return true;
+    }catch(e){
+      console.warn('Snapshot polling failed', e);
+    }
+  }
+  return false;
+}
+
+async function rescanRates(){
+  const button=$('#refresh');
+  const previousGeneratedAt=data?.generated_at || null;
+  button.disabled=true;
+  button.setAttribute('aria-busy','true');
+  setRefreshLabel('Starting scan…');
+  $('#alert').classList.add('hidden');
+
+  try{
+    const response=await fetch(RESCAN_ENDPOINT,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:'{}',
+      cache:'no-store'
+    });
+    let payload={};
+    try{ payload=await response.json(); }catch{}
+
+    if(response.status===429){
+      setRefreshLabel('Scan already running…');
+    }else if(!response.ok){
+      const message=payload?.message || payload?.error || `HTTP ${response.status}`;
+      throw new Error(message);
+    }else{
+      setRefreshLabel('Scanning banks…');
+    }
+
+    const updated=await waitForNewSnapshot(previousGeneratedAt);
+    if(updated){
+      setRefreshLabel('Scan complete ✓',2200);
+    }else{
+      setRefreshLabel('Scan still pending',2600);
+      $('#alert').textContent='The scan was triggered, but a newer deployed snapshot did not appear within 4 minutes. Check GitHub Actions for the workflow status.';
+      $('#alert').classList.remove('hidden');
+    }
+  }catch(e){
+    setRefreshLabel('Rescan failed',2400);
+    $('#alert').textContent=`Could not start a rate rescan: ${e.message}`;
+    $('#alert').classList.remove('hidden');
   }finally{
     button.disabled=false;
     button.removeAttribute('aria-busy');
   }
 }
-$('#refresh').addEventListener('click',()=>load(true));
+
+$('#refresh').addEventListener('click',rescanRates);
 $('#onlyPrimary').addEventListener('change',render);
 $('#sberPct').addEventListener('change',render);
 load();
