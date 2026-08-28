@@ -3,12 +3,8 @@ name: Update Tajik bank rates
 on:
   push:
     branches: [main]
-  schedule:
-    # Native Dushanbe time. One simple cron entry reduces scheduler ambiguity.
-    # Mon-Fri every 30 minutes from 08:23 through 17:53 local time.
-    # Odd minutes avoid GitHub's documented start-of-hour high-load period.
-    - cron: '23,53 8-17 * * 1-5'
-      timezone: 'Asia/Dushanbe'
+  # Production scheduling is handled by Supabase Cron, which calls the
+  # rescan-rates Edge Function and dispatches this workflow reliably.
   workflow_dispatch:
     inputs:
       telegram_test:
