@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 import os
 from datetime import datetime
@@ -50,6 +51,10 @@ def fmt(value: float | None) -> str:
 
 def fmt_fx(value: float | None) -> str:
     return "—" if value is None else f"{float(value):.4f}"
+
+
+def bold_if_transfer(text: str, category: str) -> str:
+    return f"<b>{text}</b>" if category == "Transfer" else text
 
 
 def collect_changes(previous: dict, current: dict) -> list[dict]:
@@ -120,19 +125,21 @@ def build_change_message(changes: list[dict], generated_at: str | None) -> str:
     lines = ["🔔 Tajik bank rate change", dt.strftime("%d.%m.%Y %H:%M (Dushanbe)"), ""]
 
     for bank in changes:
-        lines.append(f"🏦 {bank['name']}")
+        lines.append(f"🏦 {html.escape(str(bank['name']))}")
         for category in bank["rub_changes"]:
             parts = [
-                f"{item['field']} {fmt(item['old'])} → {fmt(item['new'])}"
+                f"{html.escape(str(item['field']))} {fmt(item['old'])} → {fmt(item['new'])}"
                 for item in category["changes"]
             ]
-            lines.append(f"RUB {category['category']}: " + " | ".join(parts))
-            lines.append(
+            change_line = f"RUB {category['category']}: " + " | ".join(parts)
+            current_line = (
                 f"Current: Buy {fmt(category['current_buy'])} · Sell {fmt(category['current_sell'])} / 1,000 RUB"
             )
+            lines.append(bold_if_transfer(change_line, category["category"]))
+            lines.append(bold_if_transfer(current_line, category["category"]))
         for item in bank["card_changes"]:
             lines.append(
-                f"{item['currency']} Card Buy: {fmt_fx(item['old'])} → {fmt_fx(item['new'])} TJS"
+                f"{html.escape(str(item['currency']))} Card Buy: {fmt_fx(item['old'])} → {fmt_fx(item['new'])} TJS"
             )
         lines.append("")
 
@@ -149,9 +156,10 @@ def build_test_message(current: dict) -> str:
             rate = (bank.get("rates") or {}).get(key) or {}
             if rate.get("buy_per_1000") is None and rate.get("sell_per_1000") is None:
                 continue
-            rate_lines.append(
+            line = (
                 f"RUB {label}: Buy {fmt(rate.get('buy_per_1000'))} · Sell {fmt(rate.get('sell_per_1000'))}"
             )
+            rate_lines.append(bold_if_transfer(line, label))
 
         card = bank.get("card_buy") or {}
         card_parts = []
@@ -163,7 +171,7 @@ def build_test_message(current: dict) -> str:
             rate_lines.append("Card Buy: " + " · ".join(card_parts))
 
         if rate_lines:
-            lines.append(f"🏦 {bank.get('name', bank.get('id', 'Bank'))}")
+            lines.append(f"🏦 {html.escape(str(bank.get('name', bank.get('id', 'Bank'))))}")
             lines.extend(rate_lines)
             lines.append("")
     lines.append("RUB values: TJS per 1,000 RUB")
@@ -181,7 +189,12 @@ def send_telegram(text: str) -> None:
 
     response = requests.post(
         f"https://api.telegram.org/bot{token}/sendMessage",
-        json={"chat_id": chat_id, "text": text, "disable_web_page_preview": True},
+        json={
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        },
         timeout=20,
     )
     if not response.ok:
