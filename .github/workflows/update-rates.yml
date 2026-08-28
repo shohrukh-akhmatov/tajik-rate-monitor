@@ -3,8 +3,11 @@ name: Update Tajik bank rates
 on:
   push:
     branches: [main]
-  # Production scheduling is handled by Supabase Cron, which calls the
-  # rescan-rates Edge Function and dispatches this workflow reliably.
+  # Supabase Cron is the intended primary scheduler. Keep GitHub cron as a
+  # temporary fallback until the Supabase GitHub token secret is configured.
+  schedule:
+    - cron: '23,53 8-17 * * 1-5'
+      timezone: 'Asia/Dushanbe'
   workflow_dispatch:
     inputs:
       telegram_test:
