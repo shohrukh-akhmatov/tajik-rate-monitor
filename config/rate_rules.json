@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "base_rate_policy": {
     "fallback_source": "alif",
     "fallback_for": ["ibt", "spitamen", "vasl"],
@@ -10,13 +10,12 @@
       "default_coefficient": 1.0,
       "coefficients": {
         "ibt": 1.0,
-        "mbt": 1.0,
         "humo": 0.990099,
         "spitamen": 0.990099,
         "amonat": 0.990099,
         "activbank": 0.993049,
         "oriyon": 0.993049,
-        "alif": 0.993,
+        "alif": 0.992600,
         "dc": 0.988660,
         "vasl": 0.987668,
         "eskhata": 0.987071
@@ -24,7 +23,18 @@
     },
     "sberbank": {
       "default_coefficient": 0.985,
-      "coefficients": {}
+      "coefficients": {
+        "ibt": 0.985,
+        "humo": 0.985,
+        "spitamen": 0.985,
+        "amonat": 0.985,
+        "activbank": 0.985,
+        "oriyon": 0.985,
+        "alif": 0.985,
+        "dc": 0.985,
+        "vasl": 0.985,
+        "eskhata": 0.985
+      }
     }
   },
   "anomaly_rules": {
