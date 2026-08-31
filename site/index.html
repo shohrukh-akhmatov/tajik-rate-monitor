@@ -14,7 +14,7 @@
       <div>
         <p class="eyebrow">SHOH LABS · DEV TOOL</p>
         <h1>Tajik Rate Monitor</h1>
-        <p class="sub">Cash and RUB→TJS transfer rates from official Tajik bank websites. Other categories are collected only for diagnostics and are hidden here.</p>
+        <p class="sub">Cash and RUB→TJS transfer rates from official Tajik bank websites, plus NBT reference rates and USD/EUR bank diagnostics.</p>
       </div>
       <button id="refresh" class="refresh">Rescan rates</button>
     </header>
@@ -32,6 +32,14 @@
 
     <div id="alert" class="alert hidden"></div>
     <section id="banks" class="bank-grid"></section>
+
+    <section id="referenceRates" class="history-section">
+      <div class="section-title">
+        <h2>NBT & USD/EUR reference rates</h2>
+        <span id="referenceStatus">—</span>
+      </div>
+      <div id="referenceContent" class="history-list"></div>
+    </section>
 
     <section class="history-section">
       <div class="section-title">
