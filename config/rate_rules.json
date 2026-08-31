@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "base_rate_policy": {
+    "fallback_source": "alif",
+    "fallback_for": ["ibt", "spitamen", "vasl"],
+    "preferred_category": "transfer"
+  },
+  "services": {
+    "t-bank": {
+      "default_coefficient": 1.0,
+      "coefficients": {
+        "ibt": 1.0,
+        "mbt": 1.0,
+        "humo": 0.990099,
+        "spitamen": 0.990099,
+        "amonat": 0.990099,
+        "activbank": 0.993049,
+        "oriyon": 0.993049,
+        "alif": 0.993,
+        "dc": 0.988660,
+        "vasl": 0.987668,
+        "eskhata": 0.987071
+      }
+    },
+    "sberbank": {
+      "default_coefficient": 0.985,
+      "coefficients": {}
+    }
+  },
+  "anomaly_rules": {
+    "max_rub_base_change_pct": 5.0,
+    "max_usd_eur_change_pct": 3.0,
+    "max_direct_vs_calculated_pct": 0.35,
+    "max_fallback_vs_alif_pct": 0.5,
+    "min_nbt_usd": 5.0,
+    "max_nbt_usd": 20.0,
+    "min_nbt_eur": 7.0,
+    "max_nbt_eur": 20.0,
+    "min_nbt_rub": 0.05,
+    "max_nbt_rub": 0.20
+  },
+  "rounding": {
+    "internal_decimals": 8,
+    "published_rate_decimals": 4,
+    "sample_source_amount": 1000
+  }
+}
