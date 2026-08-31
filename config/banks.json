@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "banks": [
+    {"id": "ibt", "name": "IBT", "aliases": ["IBT", "Международный Банк Таджикистана"], "base_source": "alif"},
+    {"id": "humo", "name": "Хумо", "aliases": ["Хумо", "Humo"], "base_source": "direct"},
+    {"id": "spitamen", "name": "Спитамен", "aliases": ["Спитамен", "Spitamen Bank"], "base_source": "alif"},
+    {"id": "amonat", "name": "Амонатбанк", "aliases": ["Амонатбанк", "Amonatbank"], "base_source": "direct"},
+    {"id": "alif", "name": "Алиф Банк", "aliases": ["Алиф", "Алиф Банк", "Alif Bank"], "base_source": "direct"},
+    {"id": "dc", "name": "Душанбе Сити", "aliases": ["Д сити", "Душанбе Сити", "D City", "Dushanbe City"], "base_source": "direct"},
+    {"id": "activbank", "name": "Активбанк", "aliases": ["Активбанк", "Activbank", "ActivBank"], "base_source": "direct"},
+    {"id": "vasl", "name": "Васл Банк", "aliases": ["Васл", "Васл Банк", "Vasl Bank"], "base_source": "alif"},
+    {"id": "eskhata", "name": "Эсхата Банк", "aliases": ["Эсхата", "Эсхата Банк", "Eskhata"], "base_source": "direct"},
+    {"id": "oriyon", "name": "Ориёнбанк", "aliases": ["Ориёнбанк", "Oriyonbank"], "base_source": "direct"}
+  ]
+}
