@@ -76,7 +76,6 @@ def main() -> None:
                 base_source_bank_code = bank_code
                 base_source_kind = "missing"
 
-            key = (service_slug, bank_code)
             if base_rate is None:
                 anomalies.append({
                     "service_slug": service_slug,
@@ -90,7 +89,8 @@ def main() -> None:
             if use_alif:
                 old_base = ((previous_ref.get("alif_api") or {}).get("rates") or {}).get("RUB", {}).get("buy")
             elif previous:
-                old_bank = {b.get("id"): b for b in previous.get("banks", [])}.get(bank_code, {})
+                old_banks = {b.get("id"): b for b in previous.get("banks", [])}
+                old_bank = old_banks.get(bank_code, {})
                 old_buy = ((old_bank.get("rates") or {}).get("transfer") or {}).get("buy_per_1000")
                 old_base = float(old_buy) / 1000.0 if old_buy is not None else None
 
@@ -122,6 +122,8 @@ def main() -> None:
                 "source_observed_at": generated_at,
             })
 
+    # NBT is an official reference source. USD/EUR/RUB are staged separately and
+    # are published only when the sanity checks below pass.
     nbt = reference.get("nbt") or {}
     for currency in ("RUB", "USD", "EUR"):
         item = (nbt.get("rates") or {}).get(currency)
@@ -164,6 +166,36 @@ def main() -> None:
             "anomaly_message": None,
             "source_observed_at": item.get("date"),
         })
+
+    # USD/EUR bank card-buy observations are staged as ready-to-publish inputs.
+    # We do not invent a coefficient for them: the bank's own card quote is the
+    # value to publish when that source/category is present.
+    for bank in payload.get("banks", []):
+        bank_code = bank.get("id")
+        for currency, quote in (bank.get("card_buy") or {}).items():
+            if currency not in ("USD", "EUR"):
+                continue
+            value = quote.get("buy")
+            if value is None:
+                continue
+            rows.append({
+                "service_slug": "bank-card",
+                "bank_code": bank_code,
+                "bank_name": bank.get("name", bank_code),
+                "currency_code": currency,
+                "base_rate": float(value),
+                "base_source_bank_code": bank_code,
+                "base_source_kind": "bank_card_buy",
+                "coefficient": 1.0,
+                "raw_calculated_rate": float(value),
+                "final_rate": float(value),
+                "sample_source_amount": 1,
+                "sample_target_amount": float(value),
+                "status": "ok",
+                "anomaly_code": None,
+                "anomaly_message": None,
+                "source_observed_at": quote.get("fetched_at") or generated_at,
+            })
 
     output = {
         "generated_at": generated_at,
