@@ -10,8 +10,57 @@ Developer dashboard for monitoring **RUB → TJS** rates published on official T
 - Never silently substitutes one rate class for another.
 - Publishes normalized `results.json` plus a change-only rolling `history.json` to GitHub Pages.
 - Retains the last good rate if a bank website temporarily fails, but clearly marks it **STALE**.
-- Dashboard lets you enter the rate seen in the bank's own app. That value stays only in your browser (`localStorage`).
-- Dashboard compares website vs app and calculates an optional **Sber −1.5%** estimate separately from raw bank data.
+- Uses canonical bank IDs from `config/banks.json`, so display-name changes cannot move a coefficient to another bank.
+- Uses version-controlled coefficients from `config/rate_rules.json`.
+- Uses **Alif as the explicit fallback base source only for IBT, Spitamen and Vasl** when their own base rate is unavailable.
+- Calculates ready-to-use **T-Bank and Sberbank** rates without putting the calculation logic in the mobile app.
+- Collects official **NBT RUB/USD/EUR** reference rates and checks them for missing/outlier/jump conditions before they are eligible for publication.
+- Collects available **USD/EUR bank card-buy** observations for staging.
+- Sends a separate **Telegram warning** when an anomaly requires manual review. In that case normal rate-change notifications are suppressed and calculated data stays staged.
+- Sends calculated/staged data to Supabase when the GitHub Actions secrets are configured.
+
+## Calculation pipeline
+
+```text
+Official bank/NBT sources
+        ↓
+GitHub Actions collectors
+        ↓
+Canonical bank IDs + versioned coefficients
+        ↓
+Deterministic calculation
+        ↓
+Anomaly checks
+        ↓
+Telegram warning if abnormal
+        ↓
+Supabase rate_calculation_staging
+        ↓
+Admin correction if required
+        ↓
+Admin publish RPC
+        ↓
+Existing production tables
+        ↓
+Somoni
+```
+
+The mobile app continues to read the existing production tables. The calculation/staging layer does not replace the existing public data model.
+
+## Supabase integration
+
+The pipeline writes calculation runs to `rate_calculation_runs` and ready-to-use rows to `rate_calculation_staging`.
+
+Required GitHub Actions secrets:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+
+The service-role key is used only by GitHub Actions and must never be put in the GitHub Pages frontend.
+
+After an anomalous run, an administrator can correct the staged `final_rate` and mark the row as a manual override in the admin panel. The Supabase `publish_rate_calculation_run(uuid)` function refuses to publish unresolved anomalies.
 
 ## Banks monitored
 
