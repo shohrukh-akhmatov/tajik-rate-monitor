@@ -35,7 +35,8 @@ def post(table: str, payload: object) -> None:
 
 def main() -> None:
     if not SUPABASE_URL or not SUPABASE_KEY:
-        raise SystemExit("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY GitHub secrets are required")
+        print("Supabase staging skipped: add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to GitHub Actions secrets.")
+        return
 
     data = json.loads(CALCULATED.read_text(encoding="utf-8"))
     anomalies = data.get("anomalies", [])
