@@ -3,8 +3,6 @@ name: Update Tajik bank rates
 on:
   push:
     branches: [main]
-  # Production scheduling is handled by Supabase Cron, which calls the
-  # rescan-rates Edge Function and dispatches this workflow.
   workflow_dispatch:
     inputs:
       telegram_test:
@@ -54,10 +52,30 @@ jobs:
       - name: Collect Oriyon USD EUR card buy rates
         run: python oriyon_card.py
 
-      # Runs before Pages is redeployed, so live results.json is still the previous snapshot.
-      # Run change detection for every collector execution so a push cannot silently
-      # deploy a changed rate and consume the notification baseline.
+      - name: Calculate deterministic rates and validate inputs
+        run: python calculate_rates.py
+
+      - name: Send Telegram anomaly warning
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python telegram_warning.py
+
+      - name: Stage calculated rates in Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python sync_supabase.py
+
+      - name: Check for anomalies
+        id: anomaly_check
+        run: echo "count=$(python -c 'import json; print(len(json.load(open("site/anomalies.json", encoding="utf-8"))["anomalies"]))')" >> "$GITHUB_OUTPUT"
+
+      # If an anomaly exists, the warning is the only normal Telegram message;
+      # calculated data stays in Supabase staging for manual review.
       - name: Notify Telegram on monitored rate changes
+        if: steps.anomaly_check.outputs.count == '0' || inputs.telegram_test == true
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -72,6 +90,8 @@ jobs:
           path: |
             site/results.json
             site/history.json
+            site/calculated_rates.json
+            site/anomalies.json
           retention-days: 7
 
       - name: Upload Pages artifact
