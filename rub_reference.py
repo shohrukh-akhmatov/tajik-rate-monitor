@@ -78,24 +78,30 @@ def main() -> None:
         "note": "RUB-only scan: NBT/USD/EUR data are not recollected; the last published NBT snapshot is retained for calculation compatibility.",
     }
 
-    # For any bank whose transfer table temporarily disappears, restore only the
-    # missing observation from the last validated calculation. Fresh scraper data
-    # always win. The restored value is explicitly marked stale.
+    alif_buy = float(alif_rub["buy"]) if valid_rub(alif_rub.get("buy")) else None
+
     for bank in payload.get("banks", []):
         bank_code = bank.get("id")
-        if not bank_code or bank_code in {"ibt", "spitamen", "vasl"}:
+        if not bank_code:
             continue
         rates = bank.setdefault("rates", {})
         transfer = rates.get("transfer") or {}
         current = transfer.get("buy_per_1000")
-        if current is not None and valid_rub(float(current) / 1000.0):
+        is_stale = transfer.get("stale") or transfer.get("fallback_source")
+        if current is not None and valid_rub(float(current) / 1000.0) and not is_stale:
             continue
 
         candidate = None
-        for service in ("t-bank", "sberbank", "*"):
-            candidate = last_valid_base.get((service, bank_code))
-            if candidate is not None:
-                break
+        fallback_src = None
+        if alif_buy is not None:
+            candidate = alif_buy
+            fallback_src = "alif_api"
+        else:
+            for service in ("t-bank", "sberbank", "*"):
+                candidate = last_valid_base.get((service, bank_code))
+                if candidate is not None:
+                    fallback_src = "last_valid_calculated_rate"
+                    break
         if candidate is None:
             continue
 
@@ -106,9 +112,9 @@ def main() -> None:
             "buy_per_1000": round(candidate * 1000, 4),
             "sell_per_1000": transfer.get("sell_per_1000"),
             "selector_found": False,
-            "raw": "last_valid_calculated_base",
+            "raw": fallback_src,
             "stale": True,
-            "fallback_source": "last_valid_calculated_rate",
+            "fallback_source": fallback_src,
         }
         bank["rates"] = rates
 

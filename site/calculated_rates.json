@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-01T16:20:29+05:00",
+  "generated_at": "2026-09-01T16:32:46+05:00",
   "rules_version": 2,
   "anomaly_count": 0,
   "anomalies": [],
@@ -9,18 +9,18 @@
       "bank_code": "ibt",
       "bank_name": "International Bank of Tajikistan",
       "currency_code": "RUB",
-      "base_rate": 0.1058,
+      "base_rate": 0.1055,
       "base_source_bank_code": "alif",
       "base_source_kind": "alif_api",
       "coefficient": 1.0,
-      "raw_calculated_rate": 0.1058,
-      "final_rate": 0.1058,
+      "raw_calculated_rate": 0.1055,
+      "final_rate": 0.1055,
       "sample_source_amount": 1000,
-      "sample_target_amount": 105.8,
+      "sample_target_amount": 105.5,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -38,43 +38,43 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "t-bank",
       "bank_code": "spitamen",
       "bank_name": "Spitamen Bank",
       "currency_code": "RUB",
-      "base_rate": 0.1058,
+      "base_rate": 0.1055,
       "base_source_bank_code": "alif",
       "base_source_kind": "alif_api",
       "coefficient": 0.990099,
-      "raw_calculated_rate": 0.1047524742,
-      "final_rate": 0.1048,
+      "raw_calculated_rate": 0.1044554445,
+      "final_rate": 0.1045,
       "sample_source_amount": 1000,
-      "sample_target_amount": 104.7525,
+      "sample_target_amount": 104.4554,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "t-bank",
       "bank_code": "amonat",
       "bank_name": "Amonatbank",
       "currency_code": "RUB",
-      "base_rate": 0.10579999999999999,
+      "base_rate": 0.1055,
       "base_source_bank_code": "amonat",
       "base_source_kind": "bank_transfer_observation",
       "coefficient": 0.990099,
-      "raw_calculated_rate": 0.10475247419999999,
-      "final_rate": 0.1048,
+      "raw_calculated_rate": 0.1044554445,
+      "final_rate": 0.1045,
       "sample_source_amount": 1000,
-      "sample_target_amount": 104.7525,
+      "sample_target_amount": 104.4554,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -92,7 +92,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -110,25 +110,25 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "t-bank",
       "bank_code": "alif",
       "bank_name": "Alif Bank",
       "currency_code": "RUB",
-      "base_rate": 0.10579999999999999,
+      "base_rate": 0.1055,
       "base_source_bank_code": "alif",
       "base_source_kind": "bank_transfer_observation",
       "coefficient": 0.9926,
-      "raw_calculated_rate": 0.10501708,
-      "final_rate": 0.105,
+      "raw_calculated_rate": 0.1047193,
+      "final_rate": 0.1047,
       "sample_source_amount": 1000,
-      "sample_target_amount": 105.0171,
+      "sample_target_amount": 104.7193,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -146,25 +146,25 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "t-bank",
       "bank_code": "vasl",
       "bank_name": "Vasl Bank",
       "currency_code": "RUB",
-      "base_rate": 0.1058,
+      "base_rate": 0.1055,
       "base_source_bank_code": "alif",
       "base_source_kind": "alif_api",
       "coefficient": 0.987668,
-      "raw_calculated_rate": 0.1044952744,
-      "final_rate": 0.1045,
+      "raw_calculated_rate": 0.104198974,
+      "final_rate": 0.1042,
       "sample_source_amount": 1000,
-      "sample_target_amount": 104.4953,
+      "sample_target_amount": 104.199,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -182,25 +182,25 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "sberbank",
       "bank_code": "ibt",
       "bank_name": "International Bank of Tajikistan",
       "currency_code": "RUB",
-      "base_rate": 0.1058,
+      "base_rate": 0.1055,
       "base_source_bank_code": "alif",
       "base_source_kind": "alif_api",
       "coefficient": 0.985,
-      "raw_calculated_rate": 0.104213,
-      "final_rate": 0.1042,
+      "raw_calculated_rate": 0.1039175,
+      "final_rate": 0.1039,
       "sample_source_amount": 1000,
-      "sample_target_amount": 104.213,
+      "sample_target_amount": 103.9175,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -218,43 +218,43 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "sberbank",
       "bank_code": "spitamen",
       "bank_name": "Spitamen Bank",
       "currency_code": "RUB",
-      "base_rate": 0.1058,
+      "base_rate": 0.1055,
       "base_source_bank_code": "alif",
       "base_source_kind": "alif_api",
       "coefficient": 0.985,
-      "raw_calculated_rate": 0.104213,
-      "final_rate": 0.1042,
+      "raw_calculated_rate": 0.1039175,
+      "final_rate": 0.1039,
       "sample_source_amount": 1000,
-      "sample_target_amount": 104.213,
+      "sample_target_amount": 103.9175,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "sberbank",
       "bank_code": "amonat",
       "bank_name": "Amonatbank",
       "currency_code": "RUB",
-      "base_rate": 0.10579999999999999,
+      "base_rate": 0.1055,
       "base_source_bank_code": "amonat",
       "base_source_kind": "bank_transfer_observation",
       "coefficient": 0.985,
-      "raw_calculated_rate": 0.10421299999999999,
-      "final_rate": 0.1042,
+      "raw_calculated_rate": 0.1039175,
+      "final_rate": 0.1039,
       "sample_source_amount": 1000,
-      "sample_target_amount": 104.213,
+      "sample_target_amount": 103.9175,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -272,7 +272,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -290,25 +290,25 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "sberbank",
       "bank_code": "alif",
       "bank_name": "Alif Bank",
       "currency_code": "RUB",
-      "base_rate": 0.10579999999999999,
+      "base_rate": 0.1055,
       "base_source_bank_code": "alif",
       "base_source_kind": "bank_transfer_observation",
       "coefficient": 0.985,
-      "raw_calculated_rate": 0.10421299999999999,
-      "final_rate": 0.1042,
+      "raw_calculated_rate": 0.1039175,
+      "final_rate": 0.1039,
       "sample_source_amount": 1000,
-      "sample_target_amount": 104.213,
+      "sample_target_amount": 103.9175,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -326,25 +326,25 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "sberbank",
       "bank_code": "vasl",
       "bank_name": "Vasl Bank",
       "currency_code": "RUB",
-      "base_rate": 0.1058,
+      "base_rate": 0.1055,
       "base_source_bank_code": "alif",
       "base_source_kind": "alif_api",
       "coefficient": 0.985,
-      "raw_calculated_rate": 0.104213,
-      "final_rate": 0.1042,
+      "raw_calculated_rate": 0.1039175,
+      "final_rate": 0.1039,
       "sample_source_amount": 1000,
-      "sample_target_amount": 104.213,
+      "sample_target_amount": 103.9175,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -362,7 +362,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "nbt-reference",
@@ -470,7 +470,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -488,7 +488,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -506,7 +506,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -524,7 +524,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -542,7 +542,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -560,7 +560,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -578,7 +578,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -596,7 +596,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -614,7 +614,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -632,7 +632,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -650,7 +650,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -668,7 +668,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -686,7 +686,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -704,7 +704,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -722,7 +722,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -740,7 +740,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -758,7 +758,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -776,7 +776,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T09:12:00+05:00"
+      "source_observed_at": "2026-09-01T13:30:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -794,43 +794,43 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "bank-card",
       "bank_code": "alif",
       "bank_name": "Alif Bank",
       "currency_code": "RUB",
-      "base_rate": 0.10579999999999999,
+      "base_rate": 0.1055,
       "base_source_bank_code": "alif",
       "base_source_kind": "bank_transfer_observation",
       "coefficient": 1.0,
-      "raw_calculated_rate": 0.10579999999999999,
-      "final_rate": 0.1058,
+      "raw_calculated_rate": 0.1055,
+      "final_rate": 0.1055,
       "sample_source_amount": 1000,
-      "sample_target_amount": 105.8,
+      "sample_target_amount": 105.5,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "bank-card",
       "bank_code": "amonat",
       "bank_name": "Amonatbank",
       "currency_code": "RUB",
-      "base_rate": 0.10579999999999999,
+      "base_rate": 0.1055,
       "base_source_bank_code": "amonat",
       "base_source_kind": "bank_transfer_observation",
       "coefficient": 1.0,
-      "raw_calculated_rate": 0.10579999999999999,
-      "final_rate": 0.1058,
+      "raw_calculated_rate": 0.1055,
+      "final_rate": 0.1055,
       "sample_source_amount": 1000,
-      "sample_target_amount": 105.8,
+      "sample_target_amount": 105.5,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -848,7 +848,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -866,7 +866,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -884,25 +884,25 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "bank-card",
       "bank_code": "ibt",
       "bank_name": "International Bank of Tajikistan",
       "currency_code": "RUB",
-      "base_rate": 0.1058,
+      "base_rate": 0.1055,
       "base_source_bank_code": "alif",
       "base_source_kind": "alif_api",
       "coefficient": 1.0,
-      "raw_calculated_rate": 0.1058,
-      "final_rate": 0.1058,
+      "raw_calculated_rate": 0.1055,
+      "final_rate": 0.1055,
       "sample_source_amount": 1000,
-      "sample_target_amount": 105.8,
+      "sample_target_amount": 105.5,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -920,48 +920,48 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "bank-card",
       "bank_code": "spitamen",
       "bank_name": "Spitamen Bank",
       "currency_code": "RUB",
-      "base_rate": 0.1058,
+      "base_rate": 0.1055,
       "base_source_bank_code": "alif",
       "base_source_kind": "alif_api",
       "coefficient": 1.0,
-      "raw_calculated_rate": 0.1058,
-      "final_rate": 0.1058,
+      "raw_calculated_rate": 0.1055,
+      "final_rate": 0.1055,
       "sample_source_amount": 1000,
-      "sample_target_amount": 105.8,
+      "sample_target_amount": 105.5,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     },
     {
       "service_slug": "bank-card",
       "bank_code": "vasl",
       "bank_name": "Vasl Bank",
       "currency_code": "RUB",
-      "base_rate": 0.1058,
+      "base_rate": 0.1055,
       "base_source_bank_code": "alif",
       "base_source_kind": "alif_api",
       "coefficient": 1.0,
-      "raw_calculated_rate": 0.1058,
-      "final_rate": 0.1058,
+      "raw_calculated_rate": 0.1055,
+      "final_rate": 0.1055,
       "sample_source_amount": 1000,
-      "sample_target_amount": 105.8,
+      "sample_target_amount": 105.5,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:20:29+05:00"
+      "source_observed_at": "2026-09-01T16:32:46+05:00"
     }
   ],
   "nbt_status": "ok",
   "nbt_stale": false,
   "nbt_stale_age_days": null,
-  "alif_fallback_rub": 0.1058,
+  "alif_fallback_rub": 0.1055,
   "alif_fallback_source": "alif_api"
 }

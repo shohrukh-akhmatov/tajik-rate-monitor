@@ -251,14 +251,14 @@
           "buy": 9.2,
           "source_category": "По карточкам",
           "raw": "USD 9.2000 9.2700 EUR 10.6100 10.8200 RUB",
-          "fetched_at": "2026-09-01T15:15:51+05:00"
+          "fetched_at": "2026-09-01T16:30:36+05:00"
         },
         "EUR": {
           "currency": "EUR",
           "buy": 10.61,
           "source_category": "По карточкам",
-          "raw": "EUR 10.6100 10.8200 RUB 0.1058 0.1090 Курс на: 31.08.2026",
-          "fetched_at": "2026-09-01T15:15:51+05:00"
+          "raw": "EUR 10.6100 10.8200 RUB 0.1055 0.1090 Курс на: 31.08.2026",
+          "fetched_at": "2026-09-01T16:30:36+05:00"
         }
       },
       "card_buy_status": "ok"
@@ -273,12 +273,12 @@
       "rates": {
         "transfer": {
           "label": "Transfers",
-          "buy": 0.1058,
+          "buy": 0.1055,
           "sell": 0.109,
-          "buy_per_1000": 105.8,
+          "buy_per_1000": 105.5,
           "sell_per_1000": 109.0,
           "selector_found": true,
-          "raw": "RUB 0.1058 0.1090"
+          "raw": "RUB 0.1055 0.1090"
         },
         "cash": {
           "label": "Cash",
@@ -294,7 +294,7 @@
       "error": null,
       "source_updated_at": null,
       "fetched_at": "2026-09-01T14:20:01+05:00",
-      "last_success_at": "2026-09-01T15:15:51+05:00"
+      "last_success_at": "2026-09-01T16:30:36+05:00"
     },
     {
       "id": "spitamen",
@@ -305,14 +305,14 @@
       "primary_category": "generic",
       "rates": {
         "transfer": {
-          "buy": 0.10690000000000001,
+          "buy": 0.1055,
           "sell": null,
-          "buy_per_1000": 106.9,
+          "buy_per_1000": 105.5,
           "sell_per_1000": null,
           "selector_found": false,
-          "raw": "last_valid_calculated_base",
+          "raw": "alif_api",
           "stale": true,
-          "fallback_source": "last_valid_calculated_rate"
+          "fallback_source": "alif_api"
         }
       },
       "status": "stale",
@@ -337,6 +337,16 @@
           "sell_per_1000": 112.0,
           "selector_found": true,
           "raw": "RUB Рубли Русия 0.10580 0.11200"
+        },
+        "transfer": {
+          "buy": 0.1055,
+          "sell": null,
+          "buy_per_1000": 105.5,
+          "sell_per_1000": null,
+          "selector_found": false,
+          "raw": "alif_api",
+          "stale": true,
+          "fallback_source": "alif_api"
         }
       },
       "status": "ok",
@@ -364,12 +374,12 @@
         },
         "transfer": {
           "label": "Transfers",
-          "buy": 0.1058,
-          "sell": 0.1079,
-          "buy_per_1000": 105.8,
-          "sell_per_1000": 107.9,
+          "buy": 0.1055,
+          "sell": 0.1076,
+          "buy_per_1000": 105.5,
+          "sell_per_1000": 107.6,
           "selector_found": true,
-          "raw": "{\"moneyTransferBuyValue\":\"0.1058\",\"moneyTransferTradeValue\":\"0.1079\",\"nonCashBuyValue\":\"0.1058\",\"nonCashSellValue\":\"0.1079\",\"id\":\"01a05931-580c-7e52-ad25-b8e94310d81d\",\"currencyCode\":\"810\",\"buyValue\":\"0.0900\",\"sellValue\":\"0.1070\",\"nbtValue\""
+          "raw": "{\"moneyTransferBuyValue\":\"0.1055\",\"moneyTransferTradeValue\":\"0.1076\",\"nonCashBuyValue\":\"0.1055\",\"nonCashSellValue\":\"0.1070\",\"id\":\"01a05931-580c-7e52-ad25-b8e94310d81d\",\"currencyCode\":\"810\",\"buyValue\":\"0.0900\",\"sellValue\":\"0.1070\",\"nbtValue\""
         },
         "cash": {
           "label": "Cash",
@@ -378,29 +388,29 @@
           "buy_per_1000": 90.0,
           "sell_per_1000": 107.0,
           "selector_found": true,
-          "raw": "{\"moneyTransferBuyValue\":\"0.1058\",\"moneyTransferTradeValue\":\"0.1079\",\"nonCashBuyValue\":\"0.1058\",\"nonCashSellValue\":\"0.1079\",\"id\":\"01a05931-580c-7e52-ad25-b8e94310d81d\",\"currencyCode\":\"810\",\"buyValue\":\"0.0900\",\"sellValue\":\"0.1070\",\"nbtValue\""
+          "raw": "{\"moneyTransferBuyValue\":\"0.1055\",\"moneyTransferTradeValue\":\"0.1076\",\"nonCashBuyValue\":\"0.1055\",\"nonCashSellValue\":\"0.1070\",\"id\":\"01a05931-580c-7e52-ad25-b8e94310d81d\",\"currencyCode\":\"810\",\"buyValue\":\"0.0900\",\"sellValue\":\"0.1070\",\"nbtValue\""
         }
       },
       "status": "ok",
       "error": null,
       "source_updated_at": null,
       "fetched_at": "2026-09-01T14:20:30+05:00",
-      "last_success_at": "2026-09-01T15:15:51+05:00",
+      "last_success_at": "2026-09-01T16:30:36+05:00",
       "card_buy_source": "https://alif.tj/api/rates",
       "card_buy": {
         "USD": {
           "currency": "USD",
           "buy": 9.22,
           "source_category": "Cards / Visa",
-          "raw": "{\"moneyTransferBuyValue\":\"9.2200\",\"moneyTransferTradeValue\":\"9.2700\",\"nonCashBuyValue\":\"9.2200\",\"nonCashSellValue\":\"9.2700\",\"id\":\"01a05931-580b-7ce8-9e97-36c25a3251e9\",\"currencyCode\":\"840\",\"buyValue\":\"9.2200\",\"sellValue\":\"9.2800\",\"nbtValue\"",
-          "fetched_at": "2026-09-01T15:15:15+05:00"
+          "raw": "{\"moneyTransferBuyValue\":\"9.2200\",\"moneyTransferTradeValue\":\"9.2700\",\"nonCashBuyValue\":\"9.2200\",\"nonCashSellValue\":\"9.2600\",\"id\":\"01a05931-580b-7ce8-9e97-36c25a3251e9\",\"currencyCode\":\"840\",\"buyValue\":\"9.2200\",\"sellValue\":\"9.2800\",\"nbtValue\"",
+          "fetched_at": "2026-09-01T16:30:00+05:00"
         },
         "EUR": {
           "currency": "EUR",
           "buy": 10.58,
           "source_category": "Cards / Visa",
           "raw": "{\"moneyTransferBuyValue\":\"10.5800\",\"moneyTransferTradeValue\":\"10.7800\",\"nonCashBuyValue\":\"10.5800\",\"nonCashSellValue\":\"10.7800\",\"id\":\"01a05931-580b-7212-baee-315d4146b8c6\",\"currencyCode\":\"978\",\"buyValue\":\"10.4700\",\"sellValue\":\"10.6700\",\"nbt",
-          "fetched_at": "2026-09-01T15:15:15+05:00"
+          "fetched_at": "2026-09-01T16:30:00+05:00"
         }
       },
       "card_buy_status": "ok"
@@ -421,6 +431,16 @@
           "sell_per_1000": null,
           "selector_found": true,
           "raw": "RUB 0.1067"
+        },
+        "transfer": {
+          "buy": 0.1055,
+          "sell": null,
+          "buy_per_1000": 105.5,
+          "sell_per_1000": null,
+          "selector_found": false,
+          "raw": "alif_api",
+          "stale": true,
+          "fallback_source": "alif_api"
         }
       },
       "status": "ok",
@@ -431,7 +451,7 @@
     }
   ],
   "reference_rates": {
-    "collected_at": "2026-09-01T13:50:08+05:00",
+    "collected_at": "2026-09-01T16:32:45+05:00",
     "currencies": [
       "USD",
       "EUR",
@@ -485,7 +505,7 @@
             "card_buy": 9.22,
             "card_sell": 9.27
           },
-          "date": "01.09.2026 09:12",
+          "date": "01.09.2026 13:30",
           "EUR": {
             "card_buy": 10.58,
             "card_sell": 10.78
@@ -497,7 +517,7 @@
             "card_buy": 9.17,
             "card_sell": 9.26
           },
-          "date": "01.09.2026 09:12",
+          "date": "01.09.2026 13:30",
           "EUR": {
             "card_buy": 10.65,
             "card_sell": 10.85
@@ -509,7 +529,7 @@
             "card_buy": 9.18,
             "card_sell": 9.27
           },
-          "date": "01.09.2026 09:12",
+          "date": "01.09.2026 13:30",
           "EUR": {
             "card_buy": 10.58,
             "card_sell": 10.77
@@ -521,7 +541,7 @@
             "card_buy": 9.2,
             "card_sell": 9.27
           },
-          "date": "01.09.2026 09:12",
+          "date": "01.09.2026 13:30",
           "EUR": {
             "card_buy": 10.61,
             "card_sell": 10.82
@@ -533,7 +553,7 @@
             "card_buy": 9.17,
             "card_sell": 9.27
           },
-          "date": "01.09.2026 09:12",
+          "date": "01.09.2026 13:30",
           "EUR": {
             "card_buy": 10.72,
             "card_sell": 10.82
@@ -545,7 +565,7 @@
             "card_buy": 9.18,
             "card_sell": 9.27
           },
-          "date": "01.09.2026 09:12",
+          "date": "01.09.2026 13:30",
           "EUR": {
             "card_buy": 10.6,
             "card_sell": 10.81
@@ -557,7 +577,7 @@
             "card_buy": 9.2,
             "card_sell": 9.28
           },
-          "date": "01.09.2026 09:12",
+          "date": "01.09.2026 13:30",
           "EUR": {
             "card_buy": 10.45,
             "card_sell": 10.85
@@ -569,7 +589,7 @@
             "card_buy": 9.15,
             "card_sell": 9.35
           },
-          "date": "01.09.2026 09:12",
+          "date": "01.09.2026 13:30",
           "EUR": {
             "card_buy": 10.2,
             "card_sell": 11.0
@@ -581,7 +601,7 @@
             "card_buy": 9.15,
             "card_sell": 9.28
           },
-          "date": "01.09.2026 09:12",
+          "date": "01.09.2026 13:30",
           "EUR": {
             "card_buy": 10.45,
             "card_sell": 10.9
@@ -598,22 +618,34 @@
       "source": "https://alif.tj/api/rates",
       "status": "ok",
       "rates": {
+        "CNY": {
+          "buy": 1.3471,
+          "sell": 1.4041,
+          "currency": "CNY"
+        },
         "USD": {
           "buy": 9.22,
-          "sell": 9.27
+          "sell": 9.27,
+          "currency": "USD"
         },
         "EUR": {
           "buy": 10.58,
-          "sell": 10.78
+          "sell": 10.78,
+          "currency": "EUR"
         },
         "RUB": {
-          "buy": 0.1058,
-          "sell": 0.1079
+          "buy": 0.1055,
+          "sell": 0.1076,
+          "currency": "RUB"
+        },
+        "KZT": {
+          "buy": 0.1948,
+          "sell": null,
+          "currency": "KZT"
         }
-      },
-      "rate_type": "money_transfer_buy"
+      }
     },
-    "bank_usd_eur_policy": "NBT commercial-bank Credit Cards Buy is the sole source for USD/EUR bank rates; last valid NBT publication is used for temporary gaps.",
-    "note": "Separate bank USD/EUR scrapers are disabled. NBT official FX API/HTML and NBT commercial-bank table are the only USD/EUR sources."
+    "bank_usd_eur_policy": "NBT commercial-bank Credit Cards Buy is refreshed only by the daily NBT scan.",
+    "note": "RUB-only scan: NBT/USD/EUR data are not recollected; the last published NBT snapshot is retained for calculation compatibility."
   }
 }
