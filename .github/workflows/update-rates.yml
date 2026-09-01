@@ -1,8 +1,6 @@
 name: Update Tajik bank rates
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       scan_mode:
@@ -24,9 +22,10 @@ permissions:
   pages: write
   id-token: write
 
+# Supabase is the only scheduler. Prevent overlapping runs for the same mode.
 concurrency:
   group: tajik-rate-monitor-${{ inputs.scan_mode || 'daily' }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   SCAN_MODE: ${{ inputs.scan_mode || 'daily' }}
