@@ -5,6 +5,14 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      scan_mode:
+        description: 'Collection mode'
+        required: false
+        default: daily
+        type: choice
+        options:
+          - rub
+          - daily
       telegram_test:
         description: 'Send a Telegram test snapshot'
         required: false
@@ -17,8 +25,11 @@ permissions:
   id-token: write
 
 concurrency:
-  group: tajik-rate-monitor-pages
-  cancel-in-progress: true
+  group: tajik-rate-monitor-${{ inputs.scan_mode || 'daily' }}
+  cancel-in-progress: false
+
+env:
+  SCAN_MODE: ${{ inputs.scan_mode || 'daily' }}
 
 jobs:
   collect:
@@ -41,6 +52,7 @@ jobs:
           python -m playwright install --with-deps chromium
 
       - name: Restore last valid NBT snapshot
+        if: env.SCAN_MODE == 'daily'
         uses: actions/cache/restore@v4
         with:
           path: site/nbt_last_valid.json
@@ -52,7 +64,12 @@ jobs:
         run: python monitor.py
 
       - name: Collect NBT reference and commercial-bank rates
+        if: env.SCAN_MODE == 'daily'
         run: python reference_rates.py
+
+      - name: Prepare RUB-only reference data
+        if: env.SCAN_MODE == 'rub'
+        run: python rub_reference.py
 
       - name: Normalize cash and transfer rates
         run: python postprocess.py
@@ -61,8 +78,8 @@ jobs:
         run: python calculate_rates.py
 
       - name: Save latest valid NBT snapshot
+        if: env.SCAN_MODE == 'daily'
         uses: actions/cache/save@v4
-        if: always()
         with:
           path: site/nbt_last_valid.json
           key: nbt-last-valid-${{ github.run_id }}
@@ -74,10 +91,11 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python telegram_warning.py
 
-      - name: Stage calculated rates in Supabase
+      - name: Stage and publish calculated rates in Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RATE_SCAN_MODE: ${{ env.SCAN_MODE }}
         run: python sync_supabase.py
 
       - name: Check for anomalies
