@@ -4,12 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       scan_mode:
-        description: 'Manual scan mode'
+        description: 'Manual scan mode (always full daily scan)'
         required: false
         default: daily
         type: choice
         options:
-          - rub
           - daily
       telegram_test:
         description: 'Send a Telegram test snapshot'
@@ -17,10 +16,8 @@ on:
         default: false
         type: boolean
   schedule:
-    # RUB: every 30 minutes, 08:00-20:00 Asia/Dushanbe = 03:00-15:00 UTC.
+    # Full scan every 30 minutes, 08:13..19:43 Asia/Dushanbe = 03:13..14:43 UTC.
     - cron: '13,43 3-14 * * *'
-    # Daily NBT + USD/EUR bank scan at 09:00 Asia/Dushanbe = 04:00 UTC.
-    - cron: '0 4 * * *'
 
 permissions:
   contents: read
@@ -28,12 +25,11 @@ permissions:
   id-token: write
 
 env:
-  # 04:00 UTC is the daily full scan; all other scheduled runs are RUB-only.
-  # Manual dispatch uses the selected input and defaults to daily.
-  SCAN_MODE: ${{ github.event_name == 'schedule' && (github.event.schedule == '0 4 * * *' && 'daily' || 'rub') || (inputs.scan_mode || 'daily') }}
+  # Every run is full/daily so RUB, NBT, USD and EUR stay synchronized.
+  SCAN_MODE: daily
 
 concurrency:
-  group: tajik-rate-monitor-${{ github.event_name == 'schedule' && (github.event.schedule == '0 4 * * *' && 'daily' || 'rub') || (inputs.scan_mode || 'daily') }}
+  group: tajik-rate-monitor-daily
   cancel-in-progress: true
 
 jobs:
@@ -62,20 +58,14 @@ jobs:
       - name: Collect official bank rates
         run: python monitor.py
       - name: Collect NBT reference and commercial-bank rates
-        if: env.SCAN_MODE == 'daily'
         run: python reference_rates.py
       - name: Collect Alif API fallback base
-        # RUB fallback is needed on every RUB scan, not only on daily scans.
         run: python alif_fallback.py
-      - name: Prepare RUB-only reference data
-        if: env.SCAN_MODE == 'rub'
-        run: python rub_reference.py
       - name: Normalize cash and transfer rates
         run: python postprocess.py
       - name: Calculate deterministic rates and validate inputs
         run: python calculate_rates.py
       - name: Save latest valid NBT snapshot
-        if: env.SCAN_MODE == 'daily'
         uses: actions/cache/save@v5
         with:
           path: site/nbt_last_valid.json
@@ -92,7 +82,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          RATE_SCAN_MODE: ${{ env.SCAN_MODE }}
+          RATE_SCAN_MODE: daily
         run: python sync_supabase.py
       - name: Check for anomalies
         id: anomaly_check
