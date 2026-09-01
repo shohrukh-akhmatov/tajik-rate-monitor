@@ -336,22 +336,46 @@ BEGIN
 
         -- 3. Process Commercial Bank Card rates (USD, EUR, RUB) for "Rates in Tajikistan"
         ELSIF r.service_slug = 'bank-card' AND r.currency_code IN ('USD', 'EUR', 'RUB') THEN
-            v_card_bank_name := CASE r.bank_code
-                WHEN 'ibt' THEN 'IBT'
-                WHEN 'activbank' THEN 'Активбанк'
-                WHEN 'alif' THEN 'Алиф Банк'
-                WHEN 'amonat' THEN 'Амонатбанк'
-                WHEN 'amonatbank' THEN 'Амонатбанк'
-                WHEN 'vasl' THEN 'Васл Банк'
-                WHEN 'dc' THEN 'Душанбе Сити'
-                WHEN 'dcity' THEN 'Душанбе Сити'
-                WHEN 'oriyon' THEN 'Ориёнбанк'
-                WHEN 'oriyonbank' THEN 'Ориёнбанк'
-                WHEN 'spitamen' THEN 'Спитамен'
-                WHEN 'humo' THEN 'Хумо'
-                WHEN 'eskhata' THEN 'Эсхата'
-                ELSE coalesce(r.bank_name, r.bank_code)
-            END;
+            IF r.currency_code = 'USD' THEN
+                v_card_bank_name := CASE r.bank_code
+                    WHEN 'ibt' THEN 'Международный Банк Таджикистана (IBT)'
+                    WHEN 'activbank' THEN 'Активбанк'
+                    WHEN 'alif' THEN 'Алиф Банк'
+                    WHEN 'amonat' THEN 'Амонатбанк'
+                    WHEN 'amonatbank' THEN 'Амонатбанк'
+                    WHEN 'oriyon' THEN 'Ориёнбанк'
+                    WHEN 'oriyonbank' THEN 'Ориёнбанк'
+                    WHEN 'spitamen' THEN 'Спитамен'
+                    WHEN 'eskhata' THEN 'Эсхата'
+                    ELSE coalesce(r.bank_name, r.bank_code)
+                END;
+            ELSIF r.currency_code = 'EUR' THEN
+                v_card_bank_name := CASE r.bank_code
+                    WHEN 'ibt' THEN 'IBT'
+                    WHEN 'activbank' THEN 'Активбанк'
+                    WHEN 'alif' THEN 'Алиф Банк'
+                    WHEN 'amonat' THEN 'Амонатбанк'
+                    WHEN 'amonatbank' THEN 'Амонатбанк'
+                    WHEN 'oriyon' THEN 'Ориёнбанк'
+                    WHEN 'oriyonbank' THEN 'Ориёнбанк'
+                    WHEN 'spitamen' THEN 'Спитамен'
+                    WHEN 'eskhata' THEN 'Эсхата'
+                    ELSE coalesce(r.bank_name, r.bank_code)
+                END;
+            ELSIF r.currency_code = 'RUB' THEN
+                v_card_bank_name := CASE r.bank_code
+                    WHEN 'activbank' THEN 'Активбанк'
+                    WHEN 'alif' THEN 'Алиф Банк'
+                    WHEN 'amonat' THEN 'Амонатбанк'
+                    WHEN 'amonatbank' THEN 'Амонатбанк'
+                    WHEN 'oriyon' THEN 'Ориёнбанк'
+                    WHEN 'oriyonbank' THEN 'Ориёнбанк'
+                    WHEN 'spitamen' THEN 'Спитамен'
+                    WHEN 'eskhata' THEN 'Эсхата, IBT'
+                    WHEN 'ibt' THEN 'Эсхата, IBT'
+                    ELSE coalesce(r.bank_name, r.bank_code)
+                END;
+            END IF;
 
             -- Replace any existing entry for this specific bank + currency
             SELECT coalesce(jsonb_agg(obj ORDER BY ord), '[]'::jsonb) INTO v_card_rates
