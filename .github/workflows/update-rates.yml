@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       scan_mode:
-        description: 'Collection mode'
+        description: 'Collection mode. Manual Rescan uses daily/full scan.'
         required: false
         default: daily
         type: choice
@@ -51,7 +51,6 @@ jobs:
           python -m playwright install --with-deps chromium
 
       - name: Restore last valid NBT snapshot
-        if: env.SCAN_MODE == 'daily'
         uses: actions/cache/restore@v4
         with:
           path: site/nbt_last_valid.json
@@ -62,6 +61,8 @@ jobs:
       - name: Collect official bank rates
         run: python monitor.py
 
+      # A full/daily scan is used for Rescan Rates and the daily 09:13 job.
+      # The 30-minute RUB jobs use the lighter RUB-only reference path.
       - name: Collect NBT reference and commercial-bank rates
         if: env.SCAN_MODE == 'daily'
         run: python reference_rates.py
@@ -90,12 +91,17 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python telegram_warning.py
 
-      - name: Stage and publish calculated rates in Supabase
+      # Supabase receives only publishable final rates. Coefficients, raw inputs,
+      # and intermediate calculations are retained in the Pages/artifact output.
+      - name: Publish final calculated rates to Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           RATE_SCAN_MODE: ${{ env.SCAN_MODE }}
         run: python sync_supabase.py
+
+      - name: Generate monitoring site
+        run: python generate_pages.py
 
       - name: Check for anomalies
         id: anomaly_check
