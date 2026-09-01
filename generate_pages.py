@@ -25,22 +25,35 @@ def first_number(mapping, *keys):
     return None
 
 
+def commercial_quote(row, currency, stale_keys):
+    key = f"{row.get('code', '')}:{currency}"
+    quote = row.get(currency, {}) or {}
+    value = first_number(quote, "card_buy", "buy")
+    if value is None or key in stale_keys:
+        return "—", "Not available in current NBT table"
+    return fmt_rate(value), "NBT Card Buy"
+
+
 def main():
     data = load_json(ROOT / "data" / "normalized.json", default={})
     reference = data.get("reference_rates", {}) or {}
     banks = reference.get("commercial_banks", {}) or {}
+    nbt_stale_keys = set(reference.get("commercial_banks_stale", []) or [])
 
     html = ["<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>", "<title>Tajikistan Exchange Rates</title>", "<style>body{font-family:system-ui,sans-serif;max-width:1100px;margin:32px auto;padding:0 16px;color:#222}table{border-collapse:collapse;width:100%;margin:12px 0 28px}th,td{padding:8px;border:1px solid #ddd;text-align:left}th{background:#f5f5f5}.muted{color:#666}.good{color:#087f23;font-weight:600}</style></head><body>"]
     html.append("<h1>Tajikistan Exchange Rates</h1>")
     html.append(f"<p class='muted'>Updated: {datetime.now(timezone.utc).isoformat()}</p>")
 
-    html.append("<h2>USD / EUR — bank rates from NBT commercial-bank table</h2>")
-    html.append("<p>These are the <b>Card Buy</b> values used as the USD/EUR bank reference data. They are displayed here so you can visually verify scraping quality.</p>")
-    html.append("<table><tr><th>Bank</th><th>USD buy</th><th>EUR buy</th></tr>")
-    for bank, row in sorted(banks.items()):
-        usd = row.get("USD", {}) or {}
-        eur = row.get("EUR", {}) or {}
-        html.append(f"<tr><td>{bank}</td><td>{fmt_rate(first_number(usd, 'card_buy', 'buy'))}</td><td>{fmt_rate(first_number(eur, 'card_buy', 'buy'))}</td></tr>")
+    html.append("<h2>USD / EUR — NBT commercial-bank Card Buy</h2>")
+    html.append("<p>Only values explicitly published in the current NBT commercial-bank table are shown as bank rates. If USD/EUR is absent there, the bank is treated as not offering that currency and no substitute or Alif fallback is published.</p>")
+    html.append("<table><tr><th>Bank</th><th>USD buy</th><th>USD source</th><th>EUR buy</th><th>EUR source</th></tr>")
+    for bank_code, row in sorted(banks.items()):
+        row = dict(row)
+        row["code"] = bank_code
+        usd, usd_source = commercial_quote(row, "USD", nbt_stale_keys)
+        eur, eur_source = commercial_quote(row, "EUR", nbt_stale_keys)
+        name = row.get("name", bank_code)
+        html.append(f"<tr><td>{name}</td><td>{usd}</td><td>{usd_source}</td><td>{eur}</td><td>{eur_source}</td></tr>")
     html.append("</table>")
 
     nbt = data.get("nbt", {}) or {}
@@ -49,7 +62,7 @@ def main():
         row = nbt.get(currency, {}) or {}
         html.append(f"<tr><td>{currency}</td><td>{fmt_rate(first_number(row, 'rate', 'value'))}</td></tr>")
     html.append("</table>")
-    html.append("<p class='muted'>The official NBT values above are separate from the commercial-bank Card Buy values.</p>")
+    html.append("<p class='muted'>Official NBT rates are separate from commercial-bank Card Buy rates. Alif API fallback is used only for RUB transfer base-rate calculation, never for USD/EUR bank publication.</p>")
     html.append("</body></html>")
     (ROOT / "index.html").write_text("\n".join(html), encoding="utf-8")
 
