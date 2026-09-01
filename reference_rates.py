@@ -97,23 +97,77 @@ def normalize_bank_name(name: str) -> str | None:
     return None
 
 
-def parse_nbt_commercial_html(html: str, currency: str) -> dict[str, Any]:
+def _clean_cell(cell: str) -> str:
     from html import unescape
+    return re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]+>", " ", cell))).strip()
+
+
+def _commercial_column_indexes(rows: list[str]) -> tuple[int, int, int, int]:
+    """Locate (bank_name, card_buy, card_sell, date) columns from the header row.
+
+    Headers are matched by text ("Credit Cards Buy"/"Credit Cards Sell"), so the
+    parser survives a column reorder on nbt.tj. Falls back to the current layout
+    (0/9/10/13) only when no matching header row is found.
+    """
+    for row in rows:
+        cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row, flags=re.I | re.S)
+        if len(cells) < 4:
+            continue
+        clean = [_clean_cell(c).lower() for c in cells]
+        buy = next((i for i, h in enumerate(clean) if "card" in h and "buy" in h), None)
+        sell = next((i for i, h in enumerate(clean) if "card" in h and "sell" in h), None)
+        if buy is None or sell is None:
+            # Older header style: a bare Buy/Sell pair under a Card heading.
+            # Fill only the missing side so a correctly-found column is kept.
+            if buy is None:
+                buy = next((i for i, h in enumerate(clean) if h in {"buy", "purchase", "покупка"}), None)
+            if sell is None:
+                sell = next((i for i, h in enumerate(clean) if h in {"sell", "sale", "продажа"}), None)
+        # Reject non-header rows (legends, notes) and impossible layouts.
+        if buy is None or sell is None or buy == sell:
+            continue
+        if buy == 0 or sell == 0 or any(w in clean[0] for w in ("card", "buy", "sell")):
+            continue
+        # A page may carry several date-like headers ("Date Updated", "Rate Date");
+        # the operative one is the rightmost, matching how NBT lays out its table.
+        date_cols = [i for i, h in enumerate(clean) if re.search(r"\b(date|дата)\b", h, re.I)]
+        date = date_cols[-1] if date_cols else None
+        return 0, buy, sell, date if date is not None else len(clean) - 1
+    return 0, 9, 10, 13
+
+
+def parse_nbt_commercial_html(html: str, currency: str) -> dict[str, Any]:
     out = {"source": NBT_COMMERCIAL_HTML, "source_type": "official_nbt_commercial_cards", "status": "error", "currency": currency, "commercial_banks": {}}
     try:
         rows = re.findall(r"<tr[^>]*>(.*?)</tr>", html, flags=re.I | re.S)
+        if not rows:
+            out["error"] = "No table rows found in NBT commercial-bank HTML."
+            return out
+        name_idx, buy_idx, sell_idx, date_idx = _commercial_column_indexes(rows)
         for row in rows:
             cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row, flags=re.I | re.S)
-            if len(cells) < 14: continue
-            clean = [re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]+>", " ", c))).strip() for c in cells]
-            bank_code = normalize_bank_name(clean[0])
-            if not bank_code: continue
-            try: card_buy = float(clean[9].replace(",", ".")); card_sell = float(clean[10].replace(",", "."))
-            except (ValueError, IndexError): continue
-            out["commercial_banks"][bank_code] = {"name": clean[0], currency: {"card_buy": card_buy, "card_sell": card_sell}, "date": clean[13]}
-        if out["commercial_banks"]: out["status"] = "ok"
-        else: out["error"] = f"No supported {currency} bank rows recognized in NBT commercial-bank HTML."
-    except Exception as exc: out["error"] = f"{type(exc).__name__}: {exc}"
+            if len(cells) <= max(name_idx, buy_idx, sell_idx, date_idx):
+                continue
+            clean = [_clean_cell(c) for c in cells]
+            bank_code = normalize_bank_name(clean[name_idx])
+            if not bank_code:
+                continue
+            try:
+                card_buy = float(clean[buy_idx].replace(",", "."))
+                card_sell = float(clean[sell_idx].replace(",", "."))
+            except (ValueError, IndexError):
+                continue
+            out["commercial_banks"][bank_code] = {
+                "name": clean[name_idx],
+                currency: {"card_buy": card_buy, "card_sell": card_sell},
+                "date": clean[date_idx],
+            }
+        if out["commercial_banks"]:
+            out["status"] = "ok"
+        else:
+            out["error"] = f"No supported {currency} bank rows recognized in NBT commercial-bank HTML."
+    except Exception as exc:
+        out["error"] = f"{type(exc).__name__}: {exc}"
     return out
 
 

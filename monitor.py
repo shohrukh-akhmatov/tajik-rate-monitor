@@ -4,6 +4,7 @@ import asyncio
 import json
 import math
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -352,16 +353,20 @@ async def collect_bank(browser: Browser, bank: BankConfig) -> dict[str, Any]:
     return result
 
 
-def get_public_json(name: str) -> Any:
-    try:
-        r = requests.get(
-            f"{PUBLIC_BASE}/{name}?t={int(datetime.now().timestamp())}", timeout=8,
-            headers={"User-Agent": USER_AGENT, "Cache-Control": "no-cache"},
-        )
-        if r.ok:
-            return r.json()
-    except Exception:
-        pass
+def get_public_json(name: str, attempts: int = 3) -> Any:
+    url = f"{PUBLIC_BASE}/{name}?t={int(datetime.now().timestamp())}"
+    for attempt in range(attempts):
+        try:
+            r = requests.get(
+                url, timeout=8,
+                headers={"User-Agent": USER_AGENT, "Cache-Control": "no-cache"},
+            )
+            if r.ok:
+                return r.json()
+        except Exception:
+            pass
+        if attempt < attempts - 1:
+            time.sleep(min(2 ** attempt, 4))
     return None
 
 
@@ -378,7 +383,14 @@ def merge_last_good(current: dict[str, Any], previous: dict[str, Any] | None) ->
         current["last_success_at"] = current["fetched_at"]
         return current
     if previous and previous.get("rates"):
-        current["rates"] = previous["rates"]
+        # Retain the last good values, but stamp them STALE so downstream stages
+        # (calculate_rates.is_valid_direct_transfer) never treat a retained value
+        # as a fresh website observation. Without this stamp the daily full scan
+        # published a failed scrape's last-good rate as if it were current.
+        current["rates"] = {
+            key: {**record, "stale": True, "stale_from": previous.get("last_success_at") or previous.get("fetched_at")}
+            for key, record in previous.get("rates", {}).items()
+        }
         current["last_success_at"] = previous.get("last_success_at") or previous.get("fetched_at")
         current["status"] = "stale"
         current["error"] = current.get("error") or "Collector failed; showing last known successful values"

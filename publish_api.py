@@ -23,11 +23,8 @@ def write(name: str, payload: object) -> None:
     )
 
 
-def main() -> None:
-    API.mkdir(parents=True, exist_ok=True)
-    calculated = load("calculated_rates.json", {})
-    results = load("results.json", {})
-
+def build_outputs(calculated: object, results: object) -> dict[str, object]:
+    """Build every public JSON payload. Pure function so it can be unit-tested."""
     rates = calculated.get("rates", []) if isinstance(calculated, dict) else []
     if not isinstance(rates, list):
         rates = []
@@ -42,7 +39,7 @@ def main() -> None:
     nbt = [
         r for r in rates
         if r.get("service_slug") == "nbt-reference"
-        and r.get("currency_code") in {"RUB", "USD", "EUR"}
+        and r.get("currency_code") in {"RUB", "USD", "EUR", "CNY", "KZT"}
         and r.get("final_rate") is not None
         and r.get("status") in {"ok", "stale"}
     ]
@@ -68,29 +65,22 @@ def main() -> None:
         "status": "ok" if not anomalies else "needs_review",
     }
 
-    write("rates.json", {**envelope, "rates": rub})
-    write(
-        "nbt.json",
-        {
+    return {
+        "rates.json": {**envelope, "rates": rub},
+        "nbt.json": {
             **envelope,
             "rates": nbt,
             "nbt_status": calculated.get("nbt_status"),
             "nbt_stale": calculated.get("nbt_stale", False),
         },
-    )
-    write("banks.json", {**envelope, "rates": cards})
-    write(
-        "calculated.json",
-        {
+        "banks.json": {**envelope, "rates": cards},
+        "calculated.json": {
             **envelope,
             "anomaly_count": len(anomalies),
             "anomalies": anomalies,
             "rates": rates,
         },
-    )
-    write(
-        "index.json",
-        {
+        "index.json": {
             "schema_version": 2,
             "generated_at": generated_at,
             "endpoints": [
@@ -100,7 +90,15 @@ def main() -> None:
                 "calculated.json",
             ],
         },
-    )
+    }
+
+
+def main() -> None:
+    API.mkdir(parents=True, exist_ok=True)
+    calculated = load("calculated_rates.json", {})
+    results = load("results.json", {})
+    for name, payload in build_outputs(calculated, results).items():
+        write(name, payload)
 
 
 if __name__ == "__main__":
