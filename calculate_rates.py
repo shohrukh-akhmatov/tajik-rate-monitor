@@ -59,5 +59,42 @@ def main():
             q=(bd.get(currency) or {}).get('card_buy')
             if q is None: continue
             value=float(q); rows.append({'service_slug':'bank-card','bank_code':bank_code,'bank_name':bd.get('name',bank_code),'currency_code':currency,'base_rate':value,'base_source_bank_code':'nbt','base_source_kind':'nbt_commercial_bank_card_buy','coefficient':1.0,'raw_calculated_rate':value,'final_rate':value,'sample_source_amount':1,'sample_target_amount':value,'status':'ok','anomaly_code':None,'anomaly_message':None,'source_observed_at':bd.get('date') or nbt.get('updated_at')})
+
+    # Add RUB base transfer rates for "Rates in Tajikistan" card
+    for bank_code, bank in sorted(banks.items()):
+        transfer = (bank.get('rates') or {}).get('transfer') or {}
+        direct = transfer.get('buy_per_1000')
+        if direct is not None and valid_rub(float(direct)/1000):
+            base = float(direct)/1000
+            src_kind = 'bank_transfer_observation'
+            src_bank = bank_code
+        elif alif_base is not None:
+            base = alif_base
+            src_kind = alif_source
+            src_bank = 'alif'
+        else:
+            base = last_valid_by_bank.get(('*', bank_code)) or last_valid_by_bank.get(('t-bank', bank_code))
+            src_kind = 'last_valid_route'
+            src_bank = bank_code
+        
+        if base is not None:
+            rows.append({
+                'service_slug': 'bank-card',
+                'bank_code': bank_code,
+                'bank_name': bank.get('name', bank_code),
+                'currency_code': 'RUB',
+                'base_rate': base,
+                'base_source_bank_code': src_bank,
+                'base_source_kind': src_kind,
+                'coefficient': 1.0,
+                'raw_calculated_rate': base,
+                'final_rate': base,
+                'sample_source_amount': 1000,
+                'sample_target_amount': round(base * 1000, 4),
+                'status': 'ok',
+                'anomaly_code': None,
+                'anomaly_message': None,
+                'source_observed_at': generated
+            })
     out={'generated_at':generated,'rules_version':rules['version'],'anomaly_count':len(anomalies),'anomalies':anomalies,'rates':rows,'nbt_status':nbt.get('status'),'nbt_stale':bool(nbt.get('stale')),'nbt_stale_age_days':nbt.get('stale_age_days'),'alif_fallback_rub':alif_base,'alif_fallback_source':alif_source}; Path('site/calculated_rates.json').write_text(json.dumps(out,ensure_ascii=False,indent=2),encoding='utf-8'); Path('site/anomalies.json').write_text(json.dumps({'generated_at':generated,'anomalies':anomalies},ensure_ascii=False,indent=2),encoding='utf-8'); print(json.dumps({'rows':len(rows),'anomalies':len(anomalies),'alif_fallback_rub':alif_base,'alif_fallback_source':alif_source},ensure_ascii=False))
 if __name__=='__main__': main()

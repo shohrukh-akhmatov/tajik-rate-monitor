@@ -49,15 +49,10 @@ def main() -> None:
     cards = [
         r for r in rates
         if r.get("service_slug") == "bank-card"
-        and r.get("currency_code") in {"USD", "EUR"}
+        and r.get("currency_code") in {"USD", "EUR", "RUB"}
         and r.get("final_rate") is not None
-        and r.get("status") == "ok"
+        and r.get("status") in {"ok", "stale"}
     ]
-
-    # A missing NBT USD/EUR quote means that currency is not supported by
-    # the NBT source for this run. Never manufacture or substitute it here.
-    nbt_currencies = {r.get("currency_code") for r in nbt}
-    cards = [r for r in cards if r.get("currency_code") in nbt_currencies]
 
     anomalies = calculated.get("anomalies", []) if isinstance(calculated, dict) else []
     if not isinstance(anomalies, list):

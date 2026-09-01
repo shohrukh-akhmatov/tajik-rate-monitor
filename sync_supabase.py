@@ -155,17 +155,9 @@ def main() -> None:
     anomalies = data.get("anomalies", [])
     all_rates = data.get("rates", [])
 
-    if SCAN_MODE == "rub":
-        publishable = [
-            r
-            for r in all_rates
-            if r.get("currency_code") == "RUB"
-            and r.get("service_slug") in {"t-bank", "sberbank"}
-        ]
-    elif SCAN_MODE == "daily":
-        publishable = all_rates
-    else:
-        raise RuntimeError(f"Unsupported RATE_SCAN_MODE: {SCAN_MODE}")
+    # In all scan modes, publish all validated calculated rates so NBT and Card rates
+    # in Supabase remain fresh and synchronized across every run.
+    publishable = all_rates
 
     # Fail before creating a run if the two production RUB services required by the
     # publisher are absent/inactive. This prevents a misleading partial automation run.
