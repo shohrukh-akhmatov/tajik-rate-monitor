@@ -88,9 +88,6 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python telegram_warning.py
 
-      # Supabase is now the consumer of the public GitHub Pages API.
-      # GitHub Actions no longer writes directly to Supabase.
-
       - name: Generate monitoring site
         run: python generate_pages.py
 
@@ -99,7 +96,7 @@ jobs:
 
       - name: Check for anomalies
         id: anomaly_check
-        run: echo "count=$(python -c 'import json; print(len(json.load(open("site/anomalies.json", encoding="utf-8"))["anomalies"]))')" >> "$GITHUB_OUTPUT"
+        run: echo "count=$(python -c 'import json; print(len(json.load(open("site/anomalies.json", encoding="utf-8"))["anomalies"]))' )" >> "$GITHUB_OUTPUT"
 
       - name: Notify Telegram on monitored rate changes
         if: steps.anomaly_check.outputs.count == '0' || inputs.telegram_test == true
