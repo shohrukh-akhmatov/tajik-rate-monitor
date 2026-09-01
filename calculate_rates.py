@@ -26,12 +26,7 @@ def pct_change(old: float | None, new: float | None) -> float | None:
 
 def previous_payload() -> dict | None:
     try:
-        response = requests.get(
-            PUBLIC_RESULTS,
-            params={"t": int(datetime.now().timestamp())},
-            timeout=12,
-            headers={"Cache-Control": "no-cache", "User-Agent": "TajikRateMonitor/1.2"},
-        )
+        response = requests.get(PUBLIC_RESULTS, params={"t": int(datetime.now().timestamp())}, timeout=12, headers={"Cache-Control": "no-cache", "User-Agent": "TajikRateMonitor/1.2"})
         return response.json() if response.ok else None
     except Exception:
         return None
@@ -77,12 +72,7 @@ def main() -> None:
                 base_source_kind = "missing"
 
             if base_rate is None:
-                anomalies.append({
-                    "service_slug": service_slug,
-                    "bank_code": bank_code,
-                    "code": "MISSING_BASE",
-                    "message": "No usable base rate was found.",
-                })
+                anomalies.append({"service_slug": service_slug, "bank_code": bank_code, "code": "MISSING_BASE", "message": "No usable base rate was found."})
                 continue
 
             old_base = None
@@ -103,32 +93,16 @@ def main() -> None:
                 anomalies.append({"service_slug": service_slug, "bank_code": bank_code, "code": anomaly_code, "message": anomaly_message})
 
             raw = base_rate * float(coefficient)
-            rows.append({
-                "service_slug": service_slug,
-                "bank_code": bank_code,
-                "bank_name": bank.get("name", bank_code),
-                "currency_code": "RUB",
-                "base_rate": base_rate,
-                "base_source_bank_code": base_source_bank_code,
-                "base_source_kind": base_source_kind,
-                "coefficient": float(coefficient),
-                "raw_calculated_rate": raw,
-                "final_rate": round(raw, rules["rounding"]["published_rate_decimals"]),
-                "sample_source_amount": rules["rounding"]["sample_source_amount"],
-                "sample_target_amount": round(raw * rules["rounding"]["sample_source_amount"], 4),
-                "status": "anomaly" if anomaly_code else "ok",
-                "anomaly_code": anomaly_code,
-                "anomaly_message": anomaly_message,
-                "source_observed_at": generated_at,
-            })
+            rows.append({"service_slug": service_slug, "bank_code": bank_code, "bank_name": bank.get("name", bank_code), "currency_code": "RUB", "base_rate": base_rate, "base_source_bank_code": base_source_bank_code, "base_source_kind": base_source_kind, "coefficient": float(coefficient), "raw_calculated_rate": raw, "final_rate": round(raw, rules["rounding"]["published_rate_decimals"]), "sample_source_amount": rules["rounding"]["sample_source_amount"], "sample_target_amount": round(raw * rules["rounding"]["sample_source_amount"], 4), "status": "anomaly" if anomaly_code else "ok", "anomaly_code": anomaly_code, "anomaly_message": anomaly_message, "source_observed_at": generated_at})
 
-    # NBT is an official reference source. USD/EUR/RUB are staged separately and
-    # are published only when the sanity checks below pass.
+    # NBT official reference source. If NBT is temporarily unavailable,
+    # reference_rates.py supplies the last valid NBT snapshot instead of treating
+    # a weekend/temporary publishing gap as a missing rate.
     nbt = reference.get("nbt") or {}
     for currency in ("RUB", "USD", "EUR"):
         item = (nbt.get("rates") or {}).get(currency)
         if not item:
-            anomalies.append({"service_slug": "nbt-reference", "bank_code": "nbt", "code": "NBT_MISSING", "message": f"{currency} missing from NBT"})
+            anomalies.append({"service_slug": "nbt-reference", "bank_code": "nbt", "code": "NBT_MISSING", "message": f"{currency} missing from NBT and no valid cached value is available"})
             continue
 
         value = float(item["rate"])
@@ -142,73 +116,30 @@ def main() -> None:
         bad = not bounds[0] <= value <= bounds[1]
         old = (previous_nbt.get(currency) or {}).get("rate")
         change = pct_change(old, value)
-        if currency in ("USD", "EUR") and change is not None and change > anomaly_rules["max_usd_eur_change_pct"]:
+        if currency in ("USD", "EUR") and change is not None and change > anomaly_rules["max_usd_eur_change_pct"] and not nbt.get("stale"):
             bad = True
             anomalies.append({"service_slug": "nbt-reference", "bank_code": "nbt", "code": "NBT_FX_JUMP", "message": f"{currency} changed by {change:.2f}%"})
         if not bounds[0] <= value <= bounds[1]:
             anomalies.append({"service_slug": "nbt-reference", "bank_code": "nbt", "code": "NBT_OUTLIER", "message": f"{currency} NBT value {value} is outside configured bounds"})
 
-        rows.append({
-            "service_slug": "nbt-reference",
-            "bank_code": "nbt",
-            "bank_name": "National Bank of Tajikistan",
-            "currency_code": currency,
-            "base_rate": value,
-            "base_source_bank_code": "nbt",
-            "base_source_kind": "official_nbt",
-            "coefficient": 1.0,
-            "raw_calculated_rate": value,
-            "final_rate": value,
-            "sample_source_amount": item.get("nominal") or 1,
-            "sample_target_amount": value,
-            "status": "anomaly" if bad else "ok",
-            "anomaly_code": "NBT_OUTLIER" if not bounds[0] <= value <= bounds[1] else None,
-            "anomaly_message": None,
-            "source_observed_at": item.get("date"),
-        })
+        rows.append({"service_slug": "nbt-reference", "bank_code": "nbt", "bank_name": "National Bank of Tajikistan", "currency_code": currency, "base_rate": value, "base_source_bank_code": "nbt", "base_source_kind": "last_valid_official_nbt" if nbt.get("stale") else "official_nbt", "coefficient": 1.0, "raw_calculated_rate": value, "final_rate": value, "sample_source_amount": item.get("nominal") or 1, "sample_target_amount": value, "status": "stale" if nbt.get("stale") and not bad else ("anomaly" if bad else "ok"), "anomaly_code": "NBT_OUTLIER" if not bounds[0] <= value <= bounds[1] else None, "anomaly_message": "Using last valid NBT publication because the current scan has no fresh NBT data." if nbt.get("stale") and not bad else None, "source_observed_at": item.get("date")})
 
-    # USD/EUR bank card-buy observations are staged as ready-to-publish inputs.
-    # We do not invent a coefficient for them: the bank's own card quote is the
-    # value to publish when that source/category is present.
-    for bank in payload.get("banks", []):
-        bank_code = bank.get("id")
-        for currency, quote in (bank.get("card_buy") or {}).items():
-            if currency not in ("USD", "EUR"):
+    # USD/EUR commercial-bank rates now come only from NBT's official
+    # Credit Cards Buy column. Separate bank USD/EUR scrapers are intentionally disabled.
+    bank_fx = (reference.get("nbt") or {}).get("commercial_banks") or {}
+    for bank_code, bank_data in bank_fx.items():
+        bank_name = bank_data.get("name", bank_code)
+        for currency in ("USD", "EUR"):
+            quote = (bank_data.get(currency) or {}).get("card_buy")
+            if quote is None:
                 continue
-            value = quote.get("buy")
-            if value is None:
-                continue
-            rows.append({
-                "service_slug": "bank-card",
-                "bank_code": bank_code,
-                "bank_name": bank.get("name", bank_code),
-                "currency_code": currency,
-                "base_rate": float(value),
-                "base_source_bank_code": bank_code,
-                "base_source_kind": "bank_card_buy",
-                "coefficient": 1.0,
-                "raw_calculated_rate": float(value),
-                "final_rate": float(value),
-                "sample_source_amount": 1,
-                "sample_target_amount": float(value),
-                "status": "ok",
-                "anomaly_code": None,
-                "anomaly_message": None,
-                "source_observed_at": quote.get("fetched_at") or generated_at,
-            })
+            value = float(quote)
+            rows.append({"service_slug": "bank-card", "bank_code": bank_code, "bank_name": bank_name, "currency_code": currency, "base_rate": value, "base_source_bank_code": "nbt", "base_source_kind": "nbt_commercial_bank_card_buy", "coefficient": 1.0, "raw_calculated_rate": value, "final_rate": value, "sample_source_amount": 1, "sample_target_amount": value, "status": "stale" if nbt.get("stale") else "ok", "anomaly_code": None, "anomaly_message": "Using last valid NBT commercial-bank publication." if nbt.get("stale") else None, "source_observed_at": bank_data.get("date") or nbt.get("updated_at")})
 
-    output = {
-        "generated_at": generated_at,
-        "rules_version": rules["version"],
-        "anomaly_count": len(anomalies),
-        "anomalies": anomalies,
-        "rates": rows,
-        "nbt_status": nbt.get("status"),
-        "alif_fallback_rub": alif_base,
-    }
+    output = {"generated_at": generated_at, "rules_version": rules["version"], "anomaly_count": len(anomalies), "anomalies": anomalies, "rates": rows, "nbt_status": nbt.get("status"), "nbt_stale": bool(nbt.get("stale")), "nbt_stale_age_days": nbt.get("stale_age_days"), "alif_fallback_rub": alif_base}
     Path("site/calculated_rates.json").write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
     Path("site/anomalies.json").write_text(json.dumps({"generated_at": generated_at, "anomalies": anomalies}, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"rows": len(rows), "anomalies": len(anomalies), "alif_fallback_rub": alif_base}, ensure_ascii=False))
+    print(json.dumps({"rows": len(rows), "anomalies": len(anomalies), "nbt_status": nbt.get("status"), "nbt_stale": bool(nbt.get("stale")), "alif_fallback_rub": alif_base}, ensure_ascii=False))
 
 
 if __name__ == "__main__":
