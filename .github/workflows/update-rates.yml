@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       scan_mode:
-        description: 'Collection mode. Manual Rescan uses daily/full scan.'
+        description: 'Manual scan mode'
         required: false
         default: daily
         type: choice
@@ -17,7 +17,10 @@ on:
         default: false
         type: boolean
   schedule:
+    # RUB: every 30 minutes, 08:00-20:00 Asia/Dushanbe = 03:00-15:00 UTC.
     - cron: '13,43 3-14 * * *'
+    # Daily NBT + USD/EUR bank scan at 09:00 Asia/Dushanbe = 04:00 UTC.
+    - cron: '0 4 * * *'
 
 permissions:
   contents: read
@@ -25,10 +28,12 @@ permissions:
   id-token: write
 
 env:
-  SCAN_MODE: ${{ inputs.scan_mode || (github.event_name == 'schedule' && 'daily' || 'rub') }}
+  # 04:00 UTC is the daily full scan; all other scheduled runs are RUB-only.
+  # Manual dispatch uses the selected input and defaults to daily.
+  SCAN_MODE: ${{ github.event_name == 'schedule' && (github.event.schedule == '0 4 * * *' && 'daily' || 'rub') || (inputs.scan_mode || 'daily') }}
 
 concurrency:
-  group: tajik-rate-monitor-${{ inputs.scan_mode || (github.event_name == 'schedule' && 'daily' || 'rub') }}
+  group: tajik-rate-monitor-${{ github.event_name == 'schedule' && (github.event.schedule == '0 4 * * *' && 'daily' || 'rub') || (inputs.scan_mode || 'daily') }}
   cancel-in-progress: true
 
 jobs:
@@ -60,7 +65,7 @@ jobs:
         if: env.SCAN_MODE == 'daily'
         run: python reference_rates.py
       - name: Collect Alif API fallback base
-        if: env.SCAN_MODE == 'daily'
+        # RUB fallback is needed on every RUB scan, not only on daily scans.
         run: python alif_fallback.py
       - name: Prepare RUB-only reference data
         if: env.SCAN_MODE == 'rub'
