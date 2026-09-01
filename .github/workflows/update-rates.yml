@@ -1,3 +1,4 @@
+---
 name: Update Tajik bank rates
 
 on:
@@ -16,11 +17,6 @@ on:
         required: false
         default: false
         type: boolean
-  schedule:
-    # RUB every 30 minutes from 08:13 through 19:43 Asia/Dushanbe.
-    - cron: '13,43 3-14 * * *'
-    # Full scan at 09:13 Asia/Dushanbe.
-    - cron: '13 4 * * *'
 
 permissions:
   contents: read
@@ -28,11 +24,10 @@ permissions:
   id-token: write
 
 env:
-  # Scheduled 09:13 run is full; all other scheduled runs are RUB-only.
-  SCAN_MODE: ${{ github.event_name == 'schedule' && (github.event.schedule == '13 4 * * *' && 'daily' || 'rub') || (inputs.scan_mode || 'daily') }}
+  SCAN_MODE: ${{ inputs.scan_mode || 'daily' }}
 
 concurrency:
-  group: tajik-rate-monitor-${{ github.event_name == 'schedule' && (github.event.schedule == '13 4 * * *' && 'daily' || 'rub') || (inputs.scan_mode || 'daily') }}
+  group: tajik-rate-monitor-${{ inputs.scan_mode || 'daily' }}
   cancel-in-progress: true
 
 jobs:
