@@ -22,7 +22,6 @@ permissions:
   pages: write
   id-token: write
 
-# Supabase is the only scheduler. Prevent overlapping runs for the same mode.
 concurrency:
   group: tajik-rate-monitor-${{ inputs.scan_mode || 'daily' }}
   cancel-in-progress: true
@@ -61,8 +60,6 @@ jobs:
       - name: Collect official bank rates
         run: python monitor.py
 
-      # A full/daily scan is used for Rescan Rates and the daily 09:13 job.
-      # The 30-minute RUB jobs use the lighter RUB-only reference path.
       - name: Collect NBT reference and commercial-bank rates
         if: env.SCAN_MODE == 'daily'
         run: python reference_rates.py
@@ -91,17 +88,14 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python telegram_warning.py
 
-      # Supabase receives only publishable final rates. Coefficients, raw inputs,
-      # and intermediate calculations are retained in the Pages/artifact output.
-      - name: Publish final calculated rates to Supabase
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          RATE_SCAN_MODE: ${{ env.SCAN_MODE }}
-        run: python sync_supabase.py
+      # Supabase is now the consumer of the public GitHub Pages API.
+      # GitHub Actions no longer writes directly to Supabase.
 
       - name: Generate monitoring site
         run: python generate_pages.py
+
+      - name: Generate public JSON API
+        run: python publish_api.py
 
       - name: Check for anomalies
         id: anomaly_check
@@ -126,6 +120,7 @@ jobs:
             site/calculated_rates.json
             site/anomalies.json
             site/nbt_last_valid.json
+            site/api/*.json
           retention-days: 7
 
       - name: Upload Pages artifact
