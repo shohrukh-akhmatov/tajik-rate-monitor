@@ -212,7 +212,12 @@ async def collect_amonat(browser) -> dict[str, dict]:
         timezone_id="Asia/Dushanbe",
     )
     try:
-        page = await open_page(context, AMONAT_URL)
+        try:
+            page = await open_page(context, AMONAT_URL)
+        except Exception as exc:
+            print(f"Amonat page load failed: {exc}")
+            return {}
+
         result: dict[str, dict] = {}
 
         row = await visible_rub_row(page)
@@ -233,6 +238,9 @@ async def collect_amonat(browser) -> dict[str, dict]:
                 result["transfer"] = rate_record("Transfers", vals[-2], vals[-1], raw)
 
         return result
+    except Exception as exc:
+        print(f"Amonat collection failed: {exc}")
+        return {}
     finally:
         await context.close()
 
@@ -328,19 +336,28 @@ async def collect_card_buy_from_page(
         timezone_id="Asia/Dushanbe",
     )
     try:
-        page = await open_page(context, url)
-        if not await click_label(page, category_label):
-            print(f"Card category not selected at {url}: {category_label}")
+        try:
+            page = await open_page(context, url)
+        except Exception as exc:
+            print(f"Card buy page load failed for {url} ({category_label}): {exc}")
             return {}
 
-        result: dict[str, dict] = {}
-        for currency in FX_CURRENCIES:
-            found = await visible_currency_buy(page, currency)
-            if not found:
-                continue
-            buy, raw = found
-            result[currency] = card_buy_record(currency, buy, raw, source_category)
-        return result
+        try:
+            if not await click_label(page, category_label):
+                print(f"Card category not selected at {url}: {category_label}")
+                return {}
+
+            result: dict[str, dict] = {}
+            for currency in FX_CURRENCIES:
+                found = await visible_currency_buy(page, currency)
+                if not found:
+                    continue
+                buy, raw = found
+                result[currency] = card_buy_record(currency, buy, raw, source_category)
+            return result
+        except Exception as exc:
+            print(f"Card buy extraction failed for {url}: {exc}")
+            return {}
     finally:
         await context.close()
 
@@ -396,17 +413,37 @@ async def main() -> None:
     payload = json.loads(RESULTS.read_text(encoding="utf-8"))
     normalize_existing(payload)
 
+    amonat_rates = {}
+    alif_rates, alif_card_buy = {}, {}
+    oriyon_card_buy = {}
+    activ_card_buy = {}
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--disable-dev-shm-usage"])
         try:
-            amonat_rates = await collect_amonat(browser)
-            alif_rates, alif_card_buy = await collect_alif(browser)
-            oriyon_card_buy = await collect_card_buy_from_page(
-                browser, ORIYON_URL, "Картой", "Картой"
-            )
-            activ_card_buy = await collect_card_buy_from_page(
-                browser, ACTIV_URL, "По карточкам", "По карточкам"
-            )
+            try:
+                amonat_rates = await collect_amonat(browser)
+            except Exception as exc:
+                print(f"Amonat collection error: {exc}")
+
+            try:
+                alif_rates, alif_card_buy = await collect_alif(browser)
+            except Exception as exc:
+                print(f"Alif collection error: {exc}")
+
+            try:
+                oriyon_card_buy = await collect_card_buy_from_page(
+                    browser, ORIYON_URL, "Картой", "Картой"
+                )
+            except Exception as exc:
+                print(f"Oriyon card collection error: {exc}")
+
+            try:
+                activ_card_buy = await collect_card_buy_from_page(
+                    browser, ACTIV_URL, "По карточкам", "По карточкам"
+                )
+            except Exception as exc:
+                print(f"ActivBank card collection error: {exc}")
         finally:
             await browser.close()
 

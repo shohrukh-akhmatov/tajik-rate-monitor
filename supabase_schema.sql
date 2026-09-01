@@ -1,160 +1,438 @@
-﻿-- ====================================================================
+-- ====================================================================
 -- Tajik Rate Monitor: Complete Idempotent Supabase Schema & RPC
 -- Run this script in the Supabase SQL Editor (https://supabase.com/dashboard/project/iufslbdtryxspuwsfbqn/sql)
 -- ====================================================================
 
--- 1. Transfer Services Table
+-- 0. Shared Revision Sequence
+CREATE SEQUENCE IF NOT EXISTS public.moneytj_revision_seq START WITH 1 INCREMENT BY 1;
+
+-- 1. Helper / Auth Functions
+CREATE OR REPLACE FUNCTION public.moneytj_is_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO ''
+AS $$
+    SELECT coalesce((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin', false);
+$$;
+
+CREATE OR REPLACE FUNCTION public.moneytj_current_revision()
+RETURNS bigint
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT last_value FROM public.moneytj_revision_seq;
+$$;
+
+-- 2. Transfer Services Table
 CREATE TABLE IF NOT EXISTS public.transfer_services (
-    slug text PRIMARY KEY,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug text NOT NULL UNIQUE,
     name text NOT NULL,
-    is_active boolean DEFAULT true,
-    created_at timestamptz DEFAULT now()
+    short_name text,
+    logo_url text,
+    website_url text,
+    is_active boolean NOT NULL DEFAULT true,
+    sort_order integer NOT NULL DEFAULT 0,
+    service_type text NOT NULL DEFAULT 'other',
+    source_country character(2) NOT NULL DEFAULT 'RU',
+    destination_country character(2) NOT NULL DEFAULT 'TJ',
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    revision bigint NOT NULL DEFAULT nextval('moneytj_revision_seq'::regclass),
+    fee_source_currency numeric NOT NULL DEFAULT 0,
+    logo_name text,
+    is_russian_bank boolean NOT NULL DEFAULT false,
+    referral_url text,
+    is_pinned boolean NOT NULL DEFAULT false,
+    pinned_offer_text text,
+    shows_pinned_offer_card_cta boolean NOT NULL DEFAULT true
 );
 
--- Seed/activate required transfer services
-INSERT INTO public.transfer_services (slug, name, is_active)
-VALUES 
-    ('t-bank', 'Т-Банк (Тинькофф)', true),
-    ('sberbank', 'Сбербанк', true),
-    ('nbt-reference', 'НБТ Официальный курс', true),
-    ('bank-card', 'Курсы по картам банков', true)
-ON CONFLICT (slug) DO UPDATE 
-SET is_active = true, name = EXCLUDED.name;
+-- Ensure Core Transfer Services Exist
+INSERT INTO public.transfer_services (id, slug, name, website_url, is_active, is_russian_bank)
+VALUES
+    ('10000000-0000-0000-0000-000000000001', 'sberbank', 'Сбербанк', 'https://www.sberbank.ru', true, true),
+    ('10000000-0000-0000-0000-000000000002', 't-bank', 'Т-Банк', 'https://tbank.ru', true, true)
+ON CONFLICT (slug) DO UPDATE
+SET is_active = true,
+    name = EXCLUDED.name,
+    website_url = EXCLUDED.website_url,
+    is_russian_bank = EXCLUDED.is_russian_bank;
 
--- 2. Audit Runs Table
+-- 3. Rate Calculation Runs (Audit Log)
 CREATE TABLE IF NOT EXISTS public.rate_calculation_runs (
-    id uuid PRIMARY KEY,
-    generated_at timestamptz NOT NULL,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    generated_at timestamptz NOT NULL DEFAULT now(),
     source_commit text,
-    status text NOT NULL,
-    anomaly_count integer DEFAULT 0,
-    warning_sent boolean DEFAULT false,
+    source_generated_at timestamptz,
+    status text NOT NULL DEFAULT 'staged',
+    anomaly_count integer NOT NULL DEFAULT 0,
+    warning_sent boolean NOT NULL DEFAULT false,
+    published_at timestamptz,
     notes text,
-    created_at timestamptz DEFAULT now()
+    created_at timestamptz NOT NULL DEFAULT now()
 );
 
--- 3. Staging Table
+-- 4. Rate Calculation Staging Table
 CREATE TABLE IF NOT EXISTS public.rate_calculation_staging (
-    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    run_id uuid REFERENCES public.rate_calculation_runs(id) ON DELETE CASCADE,
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    run_id uuid NOT NULL REFERENCES public.rate_calculation_runs(id) ON DELETE CASCADE,
     service_slug text NOT NULL,
     bank_code text NOT NULL,
     bank_name text,
-    currency_code text NOT NULL,
+    currency_code character(3) NOT NULL,
     base_rate numeric,
     base_source_bank_code text,
     base_source_kind text,
     coefficient numeric,
     raw_calculated_rate numeric,
-    final_rate numeric NOT NULL,
-    sample_source_amount numeric DEFAULT 1000,
+    final_rate numeric,
+    sample_source_amount numeric NOT NULL DEFAULT 1000,
     sample_target_amount numeric,
-    status text DEFAULT 'ok',
+    status text NOT NULL DEFAULT 'ok',
     anomaly_code text,
     anomaly_message text,
-    is_manual_override boolean DEFAULT false,
+    is_manual_override boolean NOT NULL DEFAULT false,
     manual_note text,
     source_observed_at timestamptz,
-    created_at timestamptz DEFAULT now()
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- 4. Production Rates Table (Reads from mobile app / dashboard)
-CREATE TABLE IF NOT EXISTS public.rates (
-    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    service_slug text NOT NULL,
-    bank_code text NOT NULL,
-    bank_name text,
-    currency_code text NOT NULL,
-    base_rate numeric,
-    base_source_bank_code text,
-    base_source_kind text,
-    coefficient numeric,
-    final_rate numeric NOT NULL,
-    sample_source_amount numeric DEFAULT 1000,
-    sample_target_amount numeric,
-    status text DEFAULT 'ok',
-    source_observed_at timestamptz,
-    updated_at timestamptz DEFAULT now(),
-    CONSTRAINT rates_service_bank_currency_unique UNIQUE (service_slug, bank_code, currency_code)
+CREATE INDEX IF NOT EXISTS idx_rate_calc_staging_run_id ON public.rate_calculation_staging(run_id);
+
+-- 5. Production Exchange Rates Table (Mobile App & Web Clients)
+CREATE TABLE IF NOT EXISTS public.exchange_rates (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_id uuid NOT NULL REFERENCES public.transfer_services(id),
+    source_currency character(3) NOT NULL DEFAULT 'RUB',
+    target_currency character(3) NOT NULL DEFAULT 'TJS',
+    sample_source_amount numeric NOT NULL,
+    sample_target_amount numeric NOT NULL,
+    effective_rate numeric NOT NULL,
+    fee_source_currency numeric NOT NULL DEFAULT 0,
+    total_received numeric NOT NULL,
+    rate_timestamp timestamptz NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    created_by uuid,
+    verification_status text NOT NULL DEFAULT 'unverified',
+    source_type text NOT NULL DEFAULT 'remote_manual',
+    source_note text,
+    source_url text,
+    admin_confirmed_at timestamptz,
+    revision bigint NOT NULL DEFAULT nextval('moneytj_revision_seq'::regclass),
+    is_current boolean NOT NULL DEFAULT true,
+    destination_bank_name text,
+    deleted_at timestamptz
 );
 
--- 5. Idempotent Publish RPC Function
-CREATE OR REPLACE FUNCTION public.publish_rate_calculation_run(p_run_id uuid)
-RETURNS json
+CREATE INDEX IF NOT EXISTS idx_exchange_rates_lookup ON public.exchange_rates(service_id, source_currency, target_currency, is_current) WHERE deleted_at IS NULL;
+
+-- 6. National Bank Rates Table (Official NBT FX)
+CREATE TABLE IF NOT EXISTS public.national_bank_rates (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    currency_code character(3) NOT NULL UNIQUE,
+    buy_rate numeric NOT NULL,
+    sell_rate numeric NOT NULL,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    revision bigint NOT NULL DEFAULT nextval('moneytj_revision_seq'::regclass)
+);
+
+-- 7. App Configuration Table (Card Rates & Mobile Settings)
+CREATE TABLE IF NOT EXISTS public.app_configuration (
+    key text PRIMARY KEY,
+    value jsonb NOT NULL,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    minimum_app_version text,
+    revision bigint NOT NULL DEFAULT nextval('moneytj_revision_seq'::regclass)
+);
+
+-- 8. Rescan State & Cooldown Lock Table
+CREATE TABLE IF NOT EXISTS public.rate_monitor_rescan_state (
+    id boolean PRIMARY KEY DEFAULT true,
+    last_triggered_at timestamptz,
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 9. Rescan Lock Functions
+CREATE OR REPLACE FUNCTION public.claim_rate_monitor_rescan(cooldown_seconds integer DEFAULT 300)
+RETURNS TABLE(allowed boolean, retry_after integer, triggered_at timestamp with time zone)
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS 
+SET search_path TO 'public'
+AS $$
 DECLARE
-    v_anomaly_count integer;
-    v_published_count integer := 0;
+    v_now timestamptz := now();
+    v_last timestamptz;
+    v_retry integer;
 BEGIN
-    -- Block publishing if unresolved anomalies exist
-    SELECT COUNT(*) INTO v_anomaly_count
-    FROM public.rate_calculation_staging
-    WHERE run_id = p_run_id AND status = 'anomaly';
+    INSERT INTO public.rate_monitor_rescan_state (id)
+    VALUES (true)
+    ON CONFLICT (id) DO NOTHING;
 
-    IF v_anomaly_count > 0 THEN
-        RAISE EXCEPTION 'Cannot publish run %: % unresolved anomalies found in staging.', p_run_id, v_anomaly_count;
+    SELECT last_triggered_at
+    INTO v_last
+    FROM public.rate_monitor_rescan_state
+    WHERE id = true
+    FOR UPDATE;
+
+    IF v_last IS NULL OR v_now >= v_last + make_interval(secs => cooldown_seconds) THEN
+        UPDATE public.rate_monitor_rescan_state
+        SET last_triggered_at = v_now,
+            updated_at = v_now
+        WHERE id = true;
+
+        RETURN QUERY SELECT true, 0, v_now;
+        RETURN;
     END IF;
 
-    -- Upsert staged rates into production rates table without duplicates
-    INSERT INTO public.rates (
-        service_slug,
-        bank_code,
-        bank_name,
-        currency_code,
-        base_rate,
-        base_source_bank_code,
-        base_source_kind,
-        coefficient,
-        final_rate,
-        sample_source_amount,
-        sample_target_amount,
-        status,
-        source_observed_at,
-        updated_at
-    )
-    SELECT
-        s.service_slug,
-        s.bank_code,
-        s.bank_name,
-        s.currency_code,
-        s.base_rate,
-        s.base_source_bank_code,
-        s.base_source_kind,
-        s.coefficient,
-        s.final_rate,
-        s.sample_source_amount,
-        s.sample_target_amount,
-        s.status,
-        s.source_observed_at,
-        now()
-    FROM public.rate_calculation_staging s
-    WHERE s.run_id = p_run_id
-    ON CONFLICT (service_slug, bank_code, currency_code) DO UPDATE SET
-        bank_name = EXCLUDED.bank_name,
-        base_rate = EXCLUDED.base_rate,
-        base_source_bank_code = EXCLUDED.base_source_bank_code,
-        base_source_kind = EXCLUDED.base_source_kind,
-        coefficient = EXCLUDED.coefficient,
-        final_rate = EXCLUDED.final_rate,
-        sample_source_amount = EXCLUDED.sample_source_amount,
-        sample_target_amount = EXCLUDED.sample_target_amount,
-        status = EXCLUDED.status,
-        source_observed_at = EXCLUDED.source_observed_at,
-        updated_at = now();
+    v_retry := GREATEST(
+        1,
+        ceil(extract(epoch from ((v_last + make_interval(secs => cooldown_seconds)) - v_now)))::integer
+    );
 
-    GET DIAGNOSTICS v_published_count = ROW_COUNT;
+    RETURN QUERY SELECT false, v_retry, v_last;
+END;
+$$;
 
-    -- Mark run as published
+CREATE OR REPLACE FUNCTION public.release_rate_monitor_rescan_claim(claimed_at timestamp with time zone)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+    UPDATE public.rate_monitor_rescan_state
+    SET last_triggered_at = NULL,
+        updated_at = now()
+    WHERE id = true AND last_triggered_at = claimed_at;
+    RETURN FOUND;
+END;
+$$;
+
+-- 10. Production Idempotent Publish RPC Function
+CREATE OR REPLACE FUNCTION public.publish_rate_calculation_run(p_run_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+    v_run public.rate_calculation_runs%rowtype;
+    r record;
+    v_service_id uuid;
+    v_revision bigint;
+    v_card_rates jsonb;
+    v_count integer := 0;
+    v_bank_name text;
+    v_card_bank_name text;
+    v_cards_reset boolean := false;
+BEGIN
+    SELECT * INTO v_run FROM public.rate_calculation_runs WHERE id = p_run_id FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'rate_calculation_run % not found', p_run_id;
+    END IF;
+    IF v_run.status <> 'staged' OR v_run.anomaly_count <> 0 THEN
+        RAISE EXCEPTION 'run % is not publishable: status=%, anomalies=%', p_run_id, v_run.status, v_run.anomaly_count;
+    END IF;
+
+    -- For any run with bank-card data (RUB/USD/EUR), rebuild the published card snapshot in app_configuration
+    IF EXISTS (
+        SELECT 1 FROM public.rate_calculation_staging
+        WHERE run_id = p_run_id AND service_slug = 'bank-card' AND currency_code IN ('RUB', 'USD', 'EUR')
+    ) THEN
+        SELECT coalesce(value, '[]'::jsonb) INTO v_card_rates
+        FROM public.app_configuration
+        WHERE key = 'tajikistan_card_rates'
+        FOR UPDATE;
+
+        IF v_card_rates IS NULL THEN v_card_rates := '[]'::jsonb; END IF;
+
+        -- Extract currencies present in this run so only those get refreshed
+        v_cards_reset := true;
+    END IF;
+
+    FOR r IN SELECT * FROM public.rate_calculation_staging WHERE run_id = p_run_id ORDER BY id LOOP
+        -- Process RUB transfer calculations
+        IF r.currency_code = 'RUB' AND r.service_slug IN ('t-bank', 'sberbank') THEN
+            SELECT id INTO v_service_id FROM public.transfer_services WHERE slug = r.service_slug AND is_active = true LIMIT 1;
+            IF v_service_id IS NULL THEN
+                RAISE EXCEPTION 'active transfer service % not found', r.service_slug;
+            END IF;
+
+            v_bank_name := CASE r.bank_code
+                WHEN 'ibt' THEN 'IBT'
+                WHEN 'activbank' THEN 'Активбанк'
+                WHEN 'alif' THEN 'Алиф Банк'
+                WHEN 'amonat' THEN 'Амонатбанк'
+                WHEN 'amonatbank' THEN 'Амонатбанк'
+                WHEN 'vasl' THEN 'Васл Банк'
+                WHEN 'dc' THEN 'Душанбе Сити'
+                WHEN 'dcity' THEN 'Душанбе Сити'
+                WHEN 'oriyon' THEN 'Ориёнбанк'
+                WHEN 'oriyonbank' THEN 'Ориёнбанк'
+                WHEN 'spitamen' THEN 'Спитамен'
+                WHEN 'humo' THEN 'Хумо'
+                WHEN 'eskhata' THEN 'Эсхата Банк'
+                ELSE coalesce(r.bank_name, r.bank_code)
+            END;
+
+            SELECT coalesce(max(revision), 0) + 1 INTO v_revision
+            FROM public.exchange_rates
+            WHERE service_id = v_service_id AND source_currency = 'RUB' AND target_currency = 'TJS' AND destination_bank_name = v_bank_name;
+
+            UPDATE public.exchange_rates
+            SET is_current = false
+            WHERE service_id = v_service_id AND source_currency = 'RUB' AND target_currency = 'TJS' AND destination_bank_name = v_bank_name AND is_current = true AND deleted_at IS NULL;
+
+            INSERT INTO public.exchange_rates (
+                service_id,
+                source_currency,
+                target_currency,
+                sample_source_amount,
+                sample_target_amount,
+                effective_rate,
+                rate_timestamp,
+                verification_status,
+                source_type,
+                source_note,
+                source_url,
+                revision,
+                is_current,
+                destination_bank_name
+            ) VALUES (
+                v_service_id,
+                'RUB',
+                'TJS',
+                r.sample_source_amount,
+                r.sample_target_amount,
+                r.final_rate,
+                coalesce(r.source_observed_at, now()),
+                CASE WHEN r.status = 'ok' THEN 'verified' ELSE r.status END,
+                'remote_verified',
+                concat('base=', r.base_rate, '; source=', r.base_source_kind, '/', r.base_source_bank_code, '; coefficient=', r.coefficient),
+                'https://shohrukh-akhmatov.github.io/tajik-rate-monitor/api/calculated.json',
+                v_revision,
+                true,
+                v_bank_name
+            );
+            v_count := v_count + 1;
+
+        -- Process NBT reference rates
+        ELSIF r.service_slug = 'nbt-reference' AND r.currency_code IN ('RUB', 'USD', 'EUR', 'CNY', 'KZT') THEN
+            SELECT coalesce(max(revision), 0) + 1 INTO v_revision
+            FROM public.national_bank_rates
+            WHERE currency_code = r.currency_code;
+
+            UPDATE public.national_bank_rates
+            SET updated_at = coalesce(r.source_observed_at, now()),
+                buy_rate = r.final_rate,
+                sell_rate = r.final_rate,
+                revision = v_revision
+            WHERE currency_code = r.currency_code;
+
+            IF NOT FOUND THEN
+                INSERT INTO public.national_bank_rates (currency_code, buy_rate, sell_rate, updated_at, revision)
+                VALUES (r.currency_code, r.final_rate, r.final_rate, coalesce(r.source_observed_at, now()), v_revision);
+            END IF;
+            v_count := v_count + 1;
+
+        -- Process Commercial Bank Card rates (RUB/USD/EUR) for Rates in Tajikistan card
+        ELSIF r.service_slug = 'bank-card' AND r.currency_code IN ('RUB', 'USD', 'EUR') THEN
+            v_card_bank_name := CASE r.bank_code
+                WHEN 'ibt' THEN 'IBT'
+                WHEN 'activbank' THEN 'Активбанк'
+                WHEN 'alif' THEN 'Алиф Банк'
+                WHEN 'amonat' THEN 'Амонатбанк'
+                WHEN 'amonatbank' THEN 'Амонатбанк'
+                WHEN 'vasl' THEN 'Васл Банк'
+                WHEN 'dc' THEN 'Душанбе Сити'
+                WHEN 'dcity' THEN 'Душанбе Сити'
+                WHEN 'oriyon' THEN 'Ориёнбанк'
+                WHEN 'oriyonbank' THEN 'Ориёнбанк'
+                WHEN 'spitamen' THEN 'Спитамен'
+                WHEN 'humo' THEN 'Хумо'
+                WHEN 'eskhata' THEN 'Эсхата'
+                ELSE coalesce(r.bank_name, r.bank_code)
+            END;
+
+            -- Replace any existing entry for this specific bank + currency
+            SELECT coalesce(jsonb_agg(obj ORDER BY ord), '[]'::jsonb) INTO v_card_rates
+            FROM (
+                SELECT ord, obj FROM jsonb_array_elements(v_card_rates) WITH ORDINALITY q(obj, ord)
+                WHERE NOT (upper(coalesce(obj->>'bank_name', '')) = upper(v_card_bank_name) AND upper(coalesce(obj->>'currency_code', '')) = upper(r.currency_code))
+            ) s;
+
+            v_card_rates := v_card_rates || jsonb_build_array(jsonb_build_object(
+                'bank_name', v_card_bank_name,
+                'currency_code', r.currency_code,
+                'tjs_per_unit', r.final_rate,
+                'updated_at', coalesce(r.source_observed_at, now())::text,
+                'source', 'github_pages_calculated'
+            ));
+            v_count := v_count + 1;
+        END IF;
+    END LOOP;
+
+    IF v_cards_reset THEN
+        UPDATE public.app_configuration
+        SET value = v_card_rates,
+            updated_at = now(),
+            revision = coalesce(revision, 0) + 1
+        WHERE key = 'tajikistan_card_rates';
+
+        IF NOT FOUND THEN
+            INSERT INTO public.app_configuration (key, value, updated_at, revision)
+            VALUES ('tajikistan_card_rates', v_card_rates, now(), 1);
+        END IF;
+    END IF;
+
+    -- Clean up any obsolete duplicate legacy bank names from exchange_rates
+    UPDATE public.exchange_rates
+    SET is_current = false
+    WHERE is_current = true AND destination_bank_name = 'International Bank of Tajikistan';
+
     UPDATE public.rate_calculation_runs
-    SET status = 'published'
+    SET status = 'published',
+        published_at = now(),
+        notes = coalesce(notes, '') || ' Published rows=' || v_count
     WHERE id = p_run_id;
 
-    RETURN json_build_object(
-        'success', true,
+    RETURN jsonb_build_object(
         'run_id', p_run_id,
-        'published_rows', v_published_count
+        'status', 'published',
+        'rows', v_count
     );
 END;
-;
+$$;
+
+-- 11. Row Level Security (RLS) Configuration
+ALTER TABLE public.transfer_services ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.exchange_rates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.national_bank_rates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_configuration ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rate_calculation_runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rate_calculation_staging ENABLE ROW LEVEL SECURITY;
+
+-- Public Read Policies
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'transfer_services' AND policyname = 'Public read active services') THEN
+        CREATE POLICY "Public read active services" ON public.transfer_services FOR SELECT TO anon, authenticated USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'exchange_rates' AND policyname = 'Public read rates') THEN
+        CREATE POLICY "Public read rates" ON public.exchange_rates FOR SELECT TO anon, authenticated USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'national_bank_rates' AND policyname = 'Public read national bank rates') THEN
+        CREATE POLICY "Public read national bank rates" ON public.national_bank_rates FOR SELECT TO anon, authenticated USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'app_configuration' AND policyname = 'Public read configuration') THEN
+        CREATE POLICY "Public read configuration" ON public.app_configuration FOR SELECT TO anon, authenticated USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'rate_calculation_runs' AND policyname = 'authenticated can view rate calculation runs') THEN
+        CREATE POLICY "authenticated can view rate calculation runs" ON public.rate_calculation_runs FOR SELECT TO authenticated USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'rate_calculation_staging' AND policyname = 'authenticated can view rate calculation staging') THEN
+        CREATE POLICY "authenticated can view rate calculation staging" ON public.rate_calculation_staging FOR SELECT TO authenticated USING (true);
+    END IF;
+END $$;

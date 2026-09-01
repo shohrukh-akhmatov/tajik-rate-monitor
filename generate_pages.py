@@ -1,13 +1,19 @@
-from __future__ import annotations
-
 import html
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from utils import load_json
-
 ROOT = Path(__file__).resolve().parent
 SITE = ROOT / "site"
+
+
+def load_json(path: Path, default=None):
+    if not path.exists():
+        return default if default is not None else {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return default if default is not None else {}
 
 
 def fmt_rate(value):

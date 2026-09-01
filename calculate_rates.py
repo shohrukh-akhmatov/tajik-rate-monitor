@@ -16,6 +16,15 @@ def fetch_json(url):
 def valid_rub(v):
     try:return .05<=float(v)<=.20
     except:return False
+def is_valid_direct_transfer(bank_code: str, bank: dict, fallback_banks: set[str]) -> bool:
+    if bank_code in fallback_banks:
+        return False
+    transfer = (bank.get('rates') or {}).get('transfer') or {}
+    if transfer.get('stale') or transfer.get('fallback_source'):
+        return False
+    direct = transfer.get('buy_per_1000')
+    return direct is not None and valid_rub(float(direct) / 1000)
+
 def main():
     payload=json.loads(RESULTS.read_text(encoding='utf-8')); rules=json.loads(RULES.read_text(encoding='utf-8')); banks={b['id']:b for b in payload.get('banks',[])}; previous=fetch_json(PUBLIC_RESULTS) or {}; previous_calculated=fetch_json(PUBLIC_CALCULATED) or {}; reference=payload.get('reference_rates') or {}; previous_ref=previous.get('reference_rates',{}); old_rates=previous_calculated.get('rates',[]); last_valid_by_bank={}
     for row in old_rates:
@@ -27,12 +36,17 @@ def main():
     elif valid_rub(obs_base): alif_base=obs_base; alif_source='alif_transfer_observation'
     else: alif_base=None; alif_source='missing'
     rows=[]; anomalies=[]; generated=payload.get('generated_at') or now_iso(); ar=rules['anomaly_rules']
+    fallback_banks = set(rules.get('base_rate_policy', {}).get('fallback_for', ['ibt', 'spitamen', 'vasl']))
     for service_slug,service in rules['services'].items():
         for bank_code,coef in service.get('coefficients',{}).items():
-            bank=banks.get(bank_code,{}); transfer=(bank.get('rates') or {}).get('transfer') or {}; direct=transfer.get('buy_per_1000')
-            if direct is not None and valid_rub(float(direct)/1000): base=float(direct)/1000; src_bank=bank_code; src_kind='bank_transfer_observation'
-            elif alif_base is not None: base=alif_base; src_bank='alif'; src_kind=alif_source
-            else: base=last_valid_by_bank.get((service_slug,bank_code)); src_bank=bank_code; src_kind='last_valid_route' if base is not None else 'missing'
+            bank=banks.get(bank_code,{})
+            if is_valid_direct_transfer(bank_code, bank, fallback_banks):
+                transfer=(bank.get('rates') or {}).get('transfer') or {}
+                base=float(transfer['buy_per_1000'])/1000; src_bank=bank_code; src_kind='bank_transfer_observation'
+            elif alif_base is not None:
+                base=alif_base; src_bank='alif'; src_kind=alif_source
+            else:
+                base=last_valid_by_bank.get((service_slug,bank_code)); src_bank=bank_code; src_kind='last_valid_route' if base is not None else 'missing'
             if base is None:
                 anomalies.append({'service_slug':service_slug,'bank_code':bank_code,'code':'MISSING_BASE','message':'No usable base after own quote, Alif API/observation and exact-route last-valid fallback.'}); continue
             old_base=None
@@ -62,10 +76,9 @@ def main():
 
     # Add RUB base transfer rates for "Rates in Tajikistan" card
     for bank_code, bank in sorted(banks.items()):
-        transfer = (bank.get('rates') or {}).get('transfer') or {}
-        direct = transfer.get('buy_per_1000')
-        if direct is not None and valid_rub(float(direct)/1000):
-            base = float(direct)/1000
+        if is_valid_direct_transfer(bank_code, bank, fallback_banks):
+            transfer = (bank.get('rates') or {}).get('transfer') or {}
+            base = float(transfer['buy_per_1000'])/1000
             src_kind = 'bank_transfer_observation'
             src_bank = bank_code
         elif alif_base is not None:
@@ -88,7 +101,7 @@ def main():
                 'base_source_kind': src_kind,
                 'coefficient': 1.0,
                 'raw_calculated_rate': base,
-                'final_rate': base,
+                'final_rate': round(base, rules['rounding']['published_rate_decimals']),
                 'sample_source_amount': 1000,
                 'sample_target_amount': round(base * 1000, 4),
                 'status': 'ok',

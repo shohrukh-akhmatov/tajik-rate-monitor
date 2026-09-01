@@ -20,6 +20,7 @@ NBT_HTML = "https://nbt.tj/en/kurs/kurs.php"
 NBT_COMMERCIAL_HTML = "https://nbt.tj/en/kurs/kurs_kommer_bank.php"
 ALIF_API = "https://alif.tj/api/rates"
 NBT_CACHE = Path("site/nbt_last_valid.json")
+MAX_STALE_DAYS = 7
 CURRENCIES = {"USD": (5.0, 20.0), "EUR": (7.0, 20.0), "RUB": (0.05, 0.20), "CNY": (0.5, 3.0), "KZT": (0.01, 0.20)}
 NBT_CODES = {"840": "USD", "978": "EUR", "810": "RUB", "156": "CNY", "398": "KZT"}
 BANK_NAME_MAP = {

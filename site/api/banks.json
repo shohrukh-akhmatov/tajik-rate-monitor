@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-09-01T14:37:12+05:00",
+  "generated_at": "2026-09-01T15:42:52+05:00",
   "source": "tajik-rate-monitor",
   "status": "ok",
   "rates": [
@@ -344,25 +344,25 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T14:37:12+05:00"
+      "source_observed_at": "2026-09-01T15:42:52+05:00"
     },
     {
       "service_slug": "bank-card",
       "bank_code": "alif",
       "bank_name": "Alif Bank",
       "currency_code": "RUB",
-      "base_rate": 0.1058,
+      "base_rate": 0.10579999999999999,
       "base_source_bank_code": "alif",
-      "base_source_kind": "alif_api",
+      "base_source_kind": "bank_transfer_observation",
       "coefficient": 1.0,
-      "raw_calculated_rate": 0.1058,
+      "raw_calculated_rate": 0.10579999999999999,
       "final_rate": 0.1058,
       "sample_source_amount": 1000,
       "sample_target_amount": 105.8,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T14:37:12+05:00"
+      "source_observed_at": "2026-09-01T15:42:52+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -374,13 +374,13 @@
       "base_source_kind": "bank_transfer_observation",
       "coefficient": 1.0,
       "raw_calculated_rate": 0.10579999999999999,
-      "final_rate": 0.10579999999999999,
+      "final_rate": 0.1058,
       "sample_source_amount": 1000,
       "sample_target_amount": 105.8,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T14:37:12+05:00"
+      "source_observed_at": "2026-09-01T15:42:52+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -392,13 +392,13 @@
       "base_source_kind": "bank_transfer_observation",
       "coefficient": 1.0,
       "raw_calculated_rate": 0.10579999999999999,
-      "final_rate": 0.10579999999999999,
+      "final_rate": 0.1058,
       "sample_source_amount": 1000,
       "sample_target_amount": 105.8,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T14:37:12+05:00"
+      "source_observed_at": "2026-09-01T15:42:52+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -410,13 +410,13 @@
       "base_source_kind": "bank_transfer_observation",
       "coefficient": 1.0,
       "raw_calculated_rate": 0.10579999999999999,
-      "final_rate": 0.10579999999999999,
+      "final_rate": 0.1058,
       "sample_source_amount": 1000,
       "sample_target_amount": 105.8,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T14:37:12+05:00"
+      "source_observed_at": "2026-09-01T15:42:52+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -434,7 +434,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T14:37:12+05:00"
+      "source_observed_at": "2026-09-01T15:42:52+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -452,7 +452,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T14:37:12+05:00"
+      "source_observed_at": "2026-09-01T15:42:52+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -464,31 +464,31 @@
       "base_source_kind": "bank_transfer_observation",
       "coefficient": 1.0,
       "raw_calculated_rate": 0.10579999999999999,
-      "final_rate": 0.10579999999999999,
+      "final_rate": 0.1058,
       "sample_source_amount": 1000,
       "sample_target_amount": 105.8,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T14:37:12+05:00"
+      "source_observed_at": "2026-09-01T15:42:52+05:00"
     },
     {
       "service_slug": "bank-card",
       "bank_code": "spitamen",
       "bank_name": "Spitamen Bank",
       "currency_code": "RUB",
-      "base_rate": 0.10690000000000001,
-      "base_source_bank_code": "spitamen",
-      "base_source_kind": "bank_transfer_observation",
+      "base_rate": 0.1058,
+      "base_source_bank_code": "alif",
+      "base_source_kind": "alif_api",
       "coefficient": 1.0,
-      "raw_calculated_rate": 0.10690000000000001,
-      "final_rate": 0.10690000000000001,
+      "raw_calculated_rate": 0.1058,
+      "final_rate": 0.1058,
       "sample_source_amount": 1000,
-      "sample_target_amount": 106.9,
+      "sample_target_amount": 105.8,
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T14:37:12+05:00"
+      "source_observed_at": "2026-09-01T15:42:52+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -506,7 +506,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T14:37:12+05:00"
+      "source_observed_at": "2026-09-01T15:42:52+05:00"
     }
   ]
 }

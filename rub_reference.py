@@ -83,7 +83,7 @@ def main() -> None:
     # always win. The restored value is explicitly marked stale.
     for bank in payload.get("banks", []):
         bank_code = bank.get("id")
-        if not bank_code:
+        if not bank_code or bank_code in {"ibt", "spitamen", "vasl"}:
             continue
         rates = bank.setdefault("rates", {})
         transfer = rates.get("transfer") or {}
