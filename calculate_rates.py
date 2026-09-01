@@ -19,29 +19,34 @@ def valid_rub(v):
 def main():
     payload=json.loads(RESULTS.read_text(encoding='utf-8')); rules=json.loads(RULES.read_text(encoding='utf-8')); banks={b['id']:b for b in payload.get('banks',[])}; previous=fetch_json(PUBLIC_RESULTS) or {}; previous_calculated=fetch_json(PUBLIC_CALCULATED) or {}; reference=payload.get('reference_rates') or {}; previous_ref=previous.get('reference_rates',{}); old_banks={b.get('id'):b for b in previous.get('banks',[])}
     alif=((reference.get('alif_api') or {}).get('rates') or {}).get('RUB') or {}; api_base=alif.get('buy'); alif_bank=banks.get('alif',{}); tr=((alif_bank.get('rates') or {}).get('transfer') or {}); obs=tr.get('buy_per_1000'); obs_base=float(obs)/1000 if obs is not None else None
-    old_rates=previous_calculated.get('rates',[]); last_valid=None
+    old_rates=previous_calculated.get('rates',[]); last_valid_by_bank={}
     for row in old_rates:
-        if row.get('currency_code')=='RUB' and row.get('bank_code') in {'alif','ibt','spitamen','vasl'} and valid_rub(row.get('base_rate')): last_valid=float(row['base_rate']); break
+        if row.get('currency_code')=='RUB' and valid_rub(row.get('base_rate')):
+            key=(row.get('service_slug'),row.get('bank_code'))
+            if key not in last_valid_by_bank: last_valid_by_bank[key]=float(row['base_rate'])
     if valid_rub(api_base): alif_base=float(api_base); alif_source='alif_api'
     elif valid_rub(obs_base): alif_base=obs_base; alif_source='alif_transfer_observation'
-    elif valid_rub(last_valid): alif_base=last_valid; alif_source='last_valid_rub_base'
     else: alif_base=None; alif_source='missing'
-    rows=[]; anomalies=[]; generated=payload.get('generated_at') or now_iso(); fallback=set(rules['base_rate_policy']['fallback_for']); ar=rules['anomaly_rules']
+    rows=[]; anomalies=[]; generated=payload.get('generated_at') or now_iso(); ar=rules['anomaly_rules']
     for service_slug,service in rules['services'].items():
         for bank_code,coef in service.get('coefficients',{}).items():
-            bank=banks.get(bank_code,{}); transfer=(bank.get('rates') or {}).get('transfer') or {}; direct=transfer.get('buy_per_1000'); use_alif=bank_code in fallback
-            if use_alif: base=alif_base; src_bank='alif'; src_kind=alif_source
-            elif direct is not None and valid_rub(float(direct)/1000): base=float(direct)/1000; src_bank=bank_code; src_kind='bank_transfer_observation'
+            bank=banks.get(bank_code,{}); transfer=(bank.get('rates') or {}).get('transfer') or {}; direct=transfer.get('buy_per_1000')
+            # Deterministic order for every route: own current quote -> Alif -> exact route's last valid quote.
+            if direct is not None and valid_rub(float(direct)/1000):
+                base=float(direct)/1000; src_bank=bank_code; src_kind='bank_transfer_observation'
+            elif alif_base is not None:
+                base=alif_base; src_bank='alif'; src_kind=alif_source
             else:
-                old=old_banks.get(bank_code,{}); ob=((old.get('rates') or {}).get('transfer') or {}).get('buy_per_1000'); base=float(ob)/1000 if ob is not None and valid_rub(float(ob)/1000) else None; src_bank=bank_code; src_kind='last_valid_bank_transfer' if base is not None else 'missing'
+                base=last_valid_by_bank.get((service_slug,bank_code)); src_bank=bank_code; src_kind='last_valid_route' if base is not None else 'missing'
             if base is None:
-                # Alif is mandatory fallback for these destination banks; don't emit an empty calculated row.
-                anomalies.append({'service_slug':service_slug,'bank_code':bank_code,'code':'MISSING_BASE','message':'No usable base after Alif and last-valid fallbacks.'}); continue
+                anomalies.append({'service_slug':service_slug,'bank_code':bank_code,'code':'MISSING_BASE','message':'No usable base after own quote, Alif API/observation and exact-route last-valid fallback.'}); continue
             old_base=None
-            if use_alif: old_base=((previous_ref.get('alif_api') or {}).get('rates') or {}).get('RUB',{}).get('buy'); old_base=old_base if valid_rub(old_base) else last_valid
+            if src_bank=='alif':
+                candidate=((previous_ref.get('alif_api') or {}).get('rates') or {}).get('RUB',{}).get('buy'); old_base=float(candidate) if valid_rub(candidate) else None
+            if old_base is None: old_base=last_valid_by_bank.get((service_slug,bank_code))
             change=pct_change(old_base,base); code=None; msg=None
-            if change is not None and change>ar['max_rub_base_change_pct'] and src_kind not in {'last_valid_bank_transfer','last_valid_rub_base'}: code='BASE_JUMP'; msg=f'Base rate changed by {change:.2f}%'; anomalies.append({'service_slug':service_slug,'bank_code':bank_code,'code':code,'message':msg})
-            raw=base*float(coef); stale=src_kind in {'last_valid_bank_transfer','last_valid_rub_base'}
+            if change is not None and change>ar['max_rub_base_change_pct'] and src_kind!='last_valid_route': code='BASE_JUMP'; msg=f'Base rate changed by {change:.2f}%'; anomalies.append({'service_slug':service_slug,'bank_code':bank_code,'code':code,'message':msg})
+            raw=base*float(coef); stale=src_kind=='last_valid_route'
             rows.append({'service_slug':service_slug,'bank_code':bank_code,'bank_name':bank.get('name',bank_code),'currency_code':'RUB','base_rate':base,'base_source_bank_code':src_bank,'base_source_kind':src_kind,'coefficient':float(coef),'raw_calculated_rate':raw,'final_rate':round(raw,rules['rounding']['published_rate_decimals']),'sample_source_amount':rules['rounding']['sample_source_amount'],'sample_target_amount':round(raw*rules['rounding']['sample_source_amount'],4),'status':'stale' if stale else ('anomaly' if code else 'ok'),'anomaly_code':code,'anomaly_message':msg,'source_observed_at':generated})
     nbt=reference.get('nbt') or {}
     for currency in ('RUB','USD','EUR'):
