@@ -3,22 +3,24 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import requests
-from playwright.async_api import async_playwright
 
-from monitor import BANKS, USER_AGENT, try_click_category, visible_text
+from monitor import USER_AGENT
 
 TZ = ZoneInfo("Asia/Dushanbe")
 RESULTS = "site/results.json"
 NBT_API = "https://nbt.tj/en/kurs/rate_export.php"
 NBT_HTML = "https://nbt.tj/en/kurs/kurs.php"
 ALIF_API = "https://alif.tj/api/rates"
+NBT_CACHE = Path("site/nbt_last_valid.json")
 CURRENCIES = {"USD": (5.0, 20.0), "EUR": (7.0, 20.0), "RUB": (0.05, 0.20), "CNY": (0.5, 3.0), "KZT": (0.01, 0.20)}
 NBT_CODES = {"840": "USD", "978": "EUR", "810": "RUB", "156": "CNY", "398": "KZT"}
+MAX_STALE_DAYS = 7
 
 
 def now_iso() -> str:
@@ -85,6 +87,7 @@ def parse_nbt_html(html: str) -> dict[str, Any]:
     try:
         text = unescape(re.sub(r"<[^>]+>", " ", html))
         text = re.sub(r"\s+", " ", text)
+        # The HTML fallback is intentionally conservative. The API remains primary.
         for code, currency in NBT_CODES.items():
             m = re.search(rf"\b{code}\b\s+(\d+(?:\.\d+)?)\s+[^0-9]+\s+([0-9]+[.,][0-9]+)", text)
             if m:
@@ -103,39 +106,91 @@ def parse_nbt_html(html: str) -> dict[str, Any]:
     return out
 
 
-def nbt_rates() -> dict[str, Any]:
-    """Use NBT's documented JSON API as primary, with official HTML as fallback."""
-    api_error = None
+def valid_nbt(out: dict[str, Any]) -> bool:
+    return out.get("status") == "ok" and all(c in (out.get("rates") or {}) for c in ("RUB", "USD", "EUR"))
+
+
+def cache_nbt(out: dict[str, Any]) -> None:
+    cache = dict(out)
+    cache["cached_at"] = now_iso()
+    cache["cache_source"] = out.get("source")
+    NBT_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    NBT_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def load_cached_nbt() -> dict[str, Any] | None:
     try:
-        r = requests.get(
-            NBT_API,
-            timeout=15,
-            headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
-        )
+        cached = json.loads(NBT_CACHE.read_text(encoding="utf-8"))
+        cached_at = datetime.fromisoformat(cached["cached_at"])
+        age_days = (datetime.now(TZ) - cached_at.astimezone(TZ)).total_seconds() / 86400
+        if age_days > MAX_STALE_DAYS:
+            return None
+        cached["status"] = "stale_fallback"
+        cached["source_type"] = "last_valid_official_nbt"
+        cached["stale"] = True
+        cached["stale_age_days"] = round(age_days, 3)
+        cached["current_scan_at"] = now_iso()
+        return cached
+    except Exception:
+        return None
+
+
+def nbt_rates() -> dict[str, Any]:
+    """NBT API primary, official HTML fallback, then last valid NBT snapshot."""
+    errors: list[str] = []
+    try:
+        r = requests.get(NBT_API, timeout=15, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
         r.raise_for_status()
         out = parse_nbt_api(r.json())
         out["api_http_status"] = r.status_code
-        if out["status"] == "ok":
+        if valid_nbt(out):
+            cache_nbt(out)
             return out
-        api_error = out.get("error") or f"NBT API status: {out['status']}"
+        errors.append(out.get("error") or f"NBT API status: {out['status']}")
     except Exception as exc:
-        api_error = f"{type(exc).__name__}: {exc}"
+        errors.append(f"API {type(exc).__name__}: {exc}")
 
     try:
         r = requests.get(NBT_HTML, timeout=20, headers={"User-Agent": USER_AGENT})
         r.raise_for_status()
         out = parse_nbt_html(r.text)
-        out["api_error"] = api_error
-        return out
+        if valid_nbt(out):
+            cache_nbt(out)
+            return out
+        errors.append(out.get("error") or f"NBT HTML status: {out['status']}")
     except Exception as exc:
-        return {
-            "source": NBT_API,
-            "source_type": "official_api_primary",
-            "status": "error",
-            "currencies": list(NBT_CODES.values()),
-            "rates": {},
-            "error": f"API: {api_error}; HTML: {type(exc).__name__}: {exc}",
-        }
+        errors.append(f"HTML {type(exc).__name__}: {exc}")
+
+    cached = load_cached_nbt()
+    if cached:
+        cached["fallback_errors"] = errors
+        return cached
+
+    return {
+        "source": NBT_API,
+        "source_type": "official_api_primary",
+        "status": "error",
+        "currencies": list(NBT_CODES.values()),
+        "rates": {},
+        "error": "; ".join(errors),
+    }
+
+
+def alif_api() -> dict[str, Any]:
+    """Keep Alif only as the RUB fallback source for T-Bank/Sber calculations."""
+    out = {"source": ALIF_API, "status": "error", "rates": {}}
+    try:
+        r = requests.get(ALIF_API, timeout=15, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
+        r.raise_for_status()
+        data = r.json()
+        out["status"] = "ok"
+        out["rates"] = find_alif_quotes(data)
+        out["raw_shape"] = type(data).__name__
+        if not out["rates"]:
+            out["note"] = "API responded, but no recognized buy/sell fields were found."
+    except Exception as exc:
+        out["error"] = f"{type(exc).__name__}: {exc}"
+    return out
 
 
 def find_alif_quotes(value: Any, found: dict[str, dict[str, float | None]] | None = None):
@@ -169,70 +224,6 @@ def find_alif_quotes(value: Any, found: dict[str, dict[str, float | None]] | Non
     return found
 
 
-def alif_api() -> dict[str, Any]:
-    out = {"source": ALIF_API, "status": "error", "rates": {}}
-    try:
-        r = requests.get(ALIF_API, timeout=15, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
-        r.raise_for_status()
-        data = r.json()
-        out["status"] = "ok"
-        out["rates"] = find_alif_quotes(data)
-        out["raw_shape"] = type(data).__name__
-        if not out["rates"]:
-            out["note"] = "API responded, but no recognized buy/sell fields were found."
-    except Exception as exc:
-        out["error"] = f"{type(exc).__name__}: {exc}"
-    return out
-
-
-async def collect_bank_fx() -> dict[str, Any]:
-    result = {}
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=["--disable-dev-shm-usage"])
-        try:
-            for bank in BANKS:
-                if not bank.categories:
-                    continue
-                context = await browser.new_context(user_agent=USER_AGENT, locale="ru-RU", timezone_id="Asia/Dushanbe")
-                page = await context.new_page()
-                page.set_default_timeout(7000)
-                bank_out = {}
-                try:
-                    response = await page.goto(bank.url, wait_until="domcontentloaded", timeout=35000)
-                    if response and response.status >= 400:
-                        raise RuntimeError(f"HTTP {response.status}")
-                    try:
-                        await page.wait_for_load_state("networkidle", timeout=8000)
-                    except Exception:
-                        pass
-                    await page.wait_for_timeout(700)
-                    eligible = [(key, label) for key, label in bank.categories if key in ("card", "cash")]
-                    ordered = sorted(eligible, key=lambda item: 0 if item[0] == "card" else 1)
-                    for key, label in ordered:
-                        selected = await try_click_category(page, label)
-                        text = await visible_text(page)
-                        quotes = {}
-                        for currency in ("USD", "EUR"):
-                            pair = pair_from_text(text, currency, bank.pair_order)
-                            if pair:
-                                quotes[currency] = {**pair, "selector_found": selected}
-                        if quotes:
-                            bank_out[key] = quotes
-                            if key == "card":
-                                break
-                    if not bank_out:
-                        bank_out["_note"] = "No usable USD/EUR quote found in Card or Cash categories; Transfers are intentionally excluded."
-                except Exception as exc:
-                    bank_out["_error"] = f"{type(exc).__name__}: {exc}"
-                finally:
-                    await context.close()
-                if bank_out:
-                    result[bank.id] = {"name": bank.name, "rates": bank_out}
-        finally:
-            await browser.close()
-    return result
-
-
 async def main() -> None:
     with open(RESULTS, encoding="utf-8") as f:
         payload = json.load(f)
@@ -241,18 +232,19 @@ async def main() -> None:
         "currencies": list(NBT_CODES.values()),
         "nbt": nbt_rates(),
         "alif_api": alif_api(),
-        "banks": await collect_bank_fx(),
-        "bank_usd_eur_policy": "Card first; Cash fallback; never Transfers.",
-        "note": "NBT official JSON API is primary with official HTML fallback. USD/EUR bank quotes are monitoring data only until verified for the intended product.",
+        "bank_usd_eur_policy": "NBT commercial-bank data is the sole source for USD/EUR; use the last valid NBT snapshot when NBT does not publish fresh data.",
+        "note": "Separate bank USD/EUR scrapers are disabled. NBT official JSON API is primary, official HTML is fallback, and the last valid NBT snapshot is used for temporary gaps.",
     }
     with open(RESULTS, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
+    nbt = payload["reference_rates"]["nbt"]
     print(json.dumps({
-        "nbt_status": payload["reference_rates"]["nbt"]["status"],
-        "nbt_currencies_found": sorted(payload["reference_rates"]["nbt"]["rates"]),
-        "nbt_source_type": payload["reference_rates"]["nbt"]["source_type"],
+        "nbt_status": nbt["status"],
+        "nbt_currencies_found": sorted((nbt.get("rates") or {}).keys()),
+        "nbt_source_type": nbt.get("source_type"),
+        "nbt_stale": nbt.get("stale", False),
         "alif_api_status": payload["reference_rates"]["alif_api"]["status"],
-        "bank_sources": len(payload["reference_rates"]["banks"]),
+        "bank_usd_eur_source": "NBT only",
     }, ensure_ascii=False))
 
 
