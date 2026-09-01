@@ -95,9 +95,8 @@ def main() -> None:
             raw = base_rate * float(coefficient)
             rows.append({"service_slug": service_slug, "bank_code": bank_code, "bank_name": bank.get("name", bank_code), "currency_code": "RUB", "base_rate": base_rate, "base_source_bank_code": base_source_bank_code, "base_source_kind": base_source_kind, "coefficient": float(coefficient), "raw_calculated_rate": raw, "final_rate": round(raw, rules["rounding"]["published_rate_decimals"]), "sample_source_amount": rules["rounding"]["sample_source_amount"], "sample_target_amount": round(raw * rules["rounding"]["sample_source_amount"], 4), "status": "anomaly" if anomaly_code else "ok", "anomaly_code": anomaly_code, "anomaly_message": anomaly_message, "source_observed_at": generated_at})
 
-    # NBT official reference source. If NBT is temporarily unavailable,
-    # reference_rates.py supplies the last valid NBT snapshot instead of treating
-    # a weekend/temporary publishing gap as a missing rate.
+    # NBT official reference source. A temporary NBT outage may use the last
+    # valid official NBT snapshot for the official NBT reference itself.
     nbt = reference.get("nbt") or {}
     for currency in ("RUB", "USD", "EUR"):
         item = (nbt.get("rates") or {}).get(currency)
@@ -124,17 +123,21 @@ def main() -> None:
 
         rows.append({"service_slug": "nbt-reference", "bank_code": "nbt", "bank_name": "National Bank of Tajikistan", "currency_code": currency, "base_rate": value, "base_source_bank_code": "nbt", "base_source_kind": "last_valid_official_nbt" if nbt.get("stale") else "official_nbt", "coefficient": 1.0, "raw_calculated_rate": value, "final_rate": value, "sample_source_amount": item.get("nominal") or 1, "sample_target_amount": value, "status": "stale" if nbt.get("stale") and not bad else ("anomaly" if bad else "ok"), "anomaly_code": "NBT_OUTLIER" if not bounds[0] <= value <= bounds[1] else None, "anomaly_message": "Using last valid NBT publication because the current scan has no fresh NBT data." if nbt.get("stale") and not bad else None, "source_observed_at": item.get("date")})
 
-    # USD/EUR commercial-bank rates now come only from NBT's official
-    # Credit Cards Buy column. Separate bank USD/EUR scrapers are intentionally disabled.
+    # USD/EUR commercial-bank rates are ONLY valid when NBT's current
+    # commercial-bank table explicitly contains Card Buy for that bank/currency.
+    # A missing NBT quote means the bank does not offer/serve that currency here;
+    # never substitute Alif or a cached quote for publication.
     bank_fx = (reference.get("nbt") or {}).get("commercial_banks") or {}
+    commercial_stale = set((reference.get("nbt") or {}).get("commercial_banks_stale") or [])
     for bank_code, bank_data in bank_fx.items():
         bank_name = bank_data.get("name", bank_code)
         for currency in ("USD", "EUR"):
+            stale_key = f"{bank_code}:{currency}"
             quote = (bank_data.get(currency) or {}).get("card_buy")
-            if quote is None:
+            if quote is None or stale_key in commercial_stale:
                 continue
             value = float(quote)
-            rows.append({"service_slug": "bank-card", "bank_code": bank_code, "bank_name": bank_name, "currency_code": currency, "base_rate": value, "base_source_bank_code": "nbt", "base_source_kind": "nbt_commercial_bank_card_buy", "coefficient": 1.0, "raw_calculated_rate": value, "final_rate": value, "sample_source_amount": 1, "sample_target_amount": value, "status": "stale" if nbt.get("stale") else "ok", "anomaly_code": None, "anomaly_message": "Using last valid NBT commercial-bank publication." if nbt.get("stale") else None, "source_observed_at": bank_data.get("date") or nbt.get("updated_at")})
+            rows.append({"service_slug": "bank-card", "bank_code": bank_code, "bank_name": bank_name, "currency_code": currency, "base_rate": value, "base_source_bank_code": "nbt", "base_source_kind": "nbt_commercial_bank_card_buy", "coefficient": 1.0, "raw_calculated_rate": value, "final_rate": value, "sample_source_amount": 1, "sample_target_amount": value, "status": "ok", "anomaly_code": None, "anomaly_message": None, "source_observed_at": bank_data.get("date") or nbt.get("updated_at")})
 
     output = {"generated_at": generated_at, "rules_version": rules["version"], "anomaly_count": len(anomalies), "anomalies": anomalies, "rates": rows, "nbt_status": nbt.get("status"), "nbt_stale": bool(nbt.get("stale")), "nbt_stale_age_days": nbt.get("stale_age_days"), "alif_fallback_rub": alif_base}
     Path("site/calculated_rates.json").write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
