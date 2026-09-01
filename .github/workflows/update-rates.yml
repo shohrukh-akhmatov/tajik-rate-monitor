@@ -1,6 +1,9 @@
 name: Update Tajik bank rates
 
 on:
+  schedule:
+    - cron: '13,43 8-19 * * *'
+    - cron: '13 9 * * *'
   workflow_dispatch:
     inputs:
       scan_mode:
@@ -23,11 +26,11 @@ permissions:
   id-token: write
 
 concurrency:
-  group: tajik-rate-monitor-${{ inputs.scan_mode || 'daily' }}
-  cancel-in-progress: true
+  group: tajik-rate-monitor
+  cancel-in-progress: false
 
 env:
-  SCAN_MODE: ${{ inputs.scan_mode || 'daily' }}
+  SCAN_MODE: ${{ inputs.scan_mode || (github.event_name == 'schedule' && github.event.schedule == '13 9 * * *' && 'daily') || 'rub' }}
 
 jobs:
   collect:
@@ -88,9 +91,8 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python telegram_warning.py
 
-      - name: Generate monitoring site
-        run: python generate_pages.py
-
+      # Keep the interactive site/index.html + app.js. They load fresh
+      # results.json and expose the Rescan Rates button.
       - name: Generate public JSON API
         run: python publish_api.py
 
