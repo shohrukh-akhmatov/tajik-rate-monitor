@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-09-01T15:42:52+05:00",
+  "generated_at": "2026-09-01T16:20:29+05:00",
   "source": "tajik-rate-monitor",
   "status": "ok",
   "rates": [
@@ -20,7 +20,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -38,7 +38,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -56,7 +56,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -74,7 +74,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -92,7 +92,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -110,7 +110,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -128,7 +128,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -146,7 +146,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -164,7 +164,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -182,7 +182,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -200,7 +200,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -218,7 +218,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -236,7 +236,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -254,7 +254,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -272,7 +272,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -290,7 +290,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -308,7 +308,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -326,7 +326,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "01.09.2026 09:12"
+      "source_observed_at": "2026-09-01T09:12:00+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -344,7 +344,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T15:42:52+05:00"
+      "source_observed_at": "2026-09-01T16:20:29+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -362,7 +362,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T15:42:52+05:00"
+      "source_observed_at": "2026-09-01T16:20:29+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -380,7 +380,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T15:42:52+05:00"
+      "source_observed_at": "2026-09-01T16:20:29+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -398,7 +398,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T15:42:52+05:00"
+      "source_observed_at": "2026-09-01T16:20:29+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -416,7 +416,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T15:42:52+05:00"
+      "source_observed_at": "2026-09-01T16:20:29+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -434,7 +434,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T15:42:52+05:00"
+      "source_observed_at": "2026-09-01T16:20:29+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -452,7 +452,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T15:42:52+05:00"
+      "source_observed_at": "2026-09-01T16:20:29+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -470,7 +470,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T15:42:52+05:00"
+      "source_observed_at": "2026-09-01T16:20:29+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -488,7 +488,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T15:42:52+05:00"
+      "source_observed_at": "2026-09-01T16:20:29+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -506,7 +506,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T15:42:52+05:00"
+      "source_observed_at": "2026-09-01T16:20:29+05:00"
     }
   ]
 }

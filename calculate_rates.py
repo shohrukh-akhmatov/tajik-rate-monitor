@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -16,6 +17,13 @@ def fetch_json(url):
 def valid_rub(v):
     try:return .05<=float(v)<=.20
     except:return False
+def normalize_date(raw):
+    if not raw or not isinstance(raw, str): return raw
+    m = re.match(r'(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})', raw.strip())
+    if m:
+        d, mo, y, h, mi = m.groups()
+        return f"{y}-{mo}-{d}T{h}:{mi}:00+05:00"
+    return raw
 def is_valid_direct_transfer(bank_code: str, bank: dict, fallback_banks: set[str]) -> bool:
     if bank_code in fallback_banks:
         return False
@@ -58,21 +66,21 @@ def main():
             raw=base*float(coef); stale=src_kind=='last_valid_route'
             rows.append({'service_slug':service_slug,'bank_code':bank_code,'bank_name':bank.get('name',bank_code),'currency_code':'RUB','base_rate':base,'base_source_bank_code':src_bank,'base_source_kind':src_kind,'coefficient':float(coef),'raw_calculated_rate':raw,'final_rate':round(raw,rules['rounding']['published_rate_decimals']),'sample_source_amount':rules['rounding']['sample_source_amount'],'sample_target_amount':round(raw*rules['rounding']['sample_source_amount'],4),'status':'stale' if stale else ('anomaly' if code else 'ok'),'anomaly_code':code,'anomaly_message':msg,'source_observed_at':generated})
     nbt=reference.get('nbt') or {}
-    for currency in ('RUB','USD','EUR'):
+    for currency in ('RUB','USD','EUR','CNY','KZT'):
         item=(nbt.get('rates') or {}).get(currency)
         if not item: continue
         # NBT's Rate is for its declared Nominal. Publish the normalized per-unit value.
         value=float(item.get('per_unit') if item.get('per_unit') is not None else float(item['rate'])/float(item.get('nominal') or 1))
-        bounds=(ar['min_nbt_rub'],ar['max_nbt_rub']) if currency=='RUB' else ((ar['min_nbt_usd'],ar['max_nbt_usd']) if currency=='USD' else (ar['min_nbt_eur'],ar['max_nbt_eur']))
+        bounds=(ar['min_nbt_rub'],ar['max_nbt_rub']) if currency=='RUB' else ((ar['min_nbt_usd'],ar['max_nbt_usd']) if currency=='USD' else (ar['min_nbt_eur'],ar['max_nbt_eur'])) if currency in ('USD','EUR') else (0.001, 100.0)
         bad=not bounds[0]<=value<=bounds[1]
         if bad: anomalies.append({'service_slug':'nbt-reference','bank_code':'nbt','code':'NBT_OUTLIER','message':f'{currency} NBT per-unit value {value} outside configured bounds'})
-        rows.append({'service_slug':'nbt-reference','bank_code':'nbt','bank_name':'National Bank of Tajikistan','currency_code':currency,'base_rate':value,'base_source_bank_code':'nbt','base_source_kind':'official_nbt','coefficient':1.0,'raw_calculated_rate':value,'final_rate':value,'sample_source_amount':1,'sample_target_amount':value,'status':'anomaly' if bad else 'ok','anomaly_code':'NBT_OUTLIER' if bad else None,'anomaly_message':None,'source_observed_at':item.get('date') or nbt.get('updated_at')})
+        rows.append({'service_slug':'nbt-reference','bank_code':'nbt','bank_name':'National Bank of Tajikistan','currency_code':currency,'base_rate':value,'base_source_bank_code':'nbt','base_source_kind':'official_nbt','coefficient':1.0,'raw_calculated_rate':value,'final_rate':value,'sample_source_amount':1,'sample_target_amount':value,'status':'anomaly' if bad else 'ok','anomaly_code':'NBT_OUTLIER' if bad else None,'anomaly_message':None,'source_observed_at':normalize_date(item.get('date') or nbt.get('updated_at'))})
     commercial=(nbt.get('commercial_banks') or {})
     for bank_code,bd in commercial.items():
         for currency in ('USD','EUR'):
             q=(bd.get(currency) or {}).get('card_buy')
             if q is None: continue
-            value=float(q); rows.append({'service_slug':'bank-card','bank_code':bank_code,'bank_name':bd.get('name',bank_code),'currency_code':currency,'base_rate':value,'base_source_bank_code':'nbt','base_source_kind':'nbt_commercial_bank_card_buy','coefficient':1.0,'raw_calculated_rate':value,'final_rate':value,'sample_source_amount':1,'sample_target_amount':value,'status':'ok','anomaly_code':None,'anomaly_message':None,'source_observed_at':bd.get('date') or nbt.get('updated_at')})
+            value=float(q); rows.append({'service_slug':'bank-card','bank_code':bank_code,'bank_name':bd.get('name',bank_code),'currency_code':currency,'base_rate':value,'base_source_bank_code':'nbt','base_source_kind':'nbt_commercial_bank_card_buy','coefficient':1.0,'raw_calculated_rate':value,'final_rate':value,'sample_source_amount':1,'sample_target_amount':value,'status':'ok','anomaly_code':None,'anomaly_message':None,'source_observed_at':normalize_date(bd.get('date') or nbt.get('updated_at'))})
 
     # Add RUB base transfer rates for "Rates in Tajikistan" card
     for bank_code, bank in sorted(banks.items()):
