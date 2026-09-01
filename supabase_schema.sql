@@ -223,11 +223,12 @@ DECLARE
     r record;
     v_service_id uuid;
     v_revision bigint;
-    v_card_rates jsonb;
+    v_card_rates jsonb := '[]'::jsonb;
     v_count integer := 0;
     v_bank_name text;
     v_card_bank_name text;
-    v_cards_reset boolean := false;
+    v_has_card_rates boolean := false;
+    v_iso_timestamp text;
 BEGIN
     SELECT * INTO v_run FROM public.rate_calculation_runs WHERE id = p_run_id FOR UPDATE;
     IF NOT FOUND THEN
@@ -237,24 +238,19 @@ BEGIN
         RAISE EXCEPTION 'run % is not publishable: status=%, anomalies=%', p_run_id, v_run.status, v_run.anomaly_count;
     END IF;
 
-    -- For any run with bank-card data (RUB/USD/EUR), rebuild the published card snapshot in app_configuration
-    IF EXISTS (
-        SELECT 1 FROM public.rate_calculation_staging
-        WHERE run_id = p_run_id AND service_slug = 'bank-card' AND currency_code IN ('RUB', 'USD', 'EUR')
-    ) THEN
-        SELECT coalesce(value, '[]'::jsonb) INTO v_card_rates
-        FROM public.app_configuration
-        WHERE key = 'tajikistan_card_rates'
-        FOR UPDATE;
+    -- Load current tajikistan_card_rates snapshot from app_configuration
+    SELECT coalesce(value, '[]'::jsonb) INTO v_card_rates
+    FROM public.app_configuration
+    WHERE key = 'tajikistan_card_rates'
+    FOR UPDATE;
 
-        IF v_card_rates IS NULL THEN v_card_rates := '[]'::jsonb; END IF;
-
-        -- Extract currencies present in this run so only those get refreshed
-        v_cards_reset := true;
-    END IF;
+    IF v_card_rates IS NULL THEN v_card_rates := '[]'::jsonb; END IF;
 
     FOR r IN SELECT * FROM public.rate_calculation_staging WHERE run_id = p_run_id ORDER BY id LOOP
-        -- Process RUB transfer calculations
+        -- Format RFC 3339 / ISO 8601 Zulu timestamp for Swift MoneyTJJSONDecoder compatibility
+        v_iso_timestamp := to_char(coalesce(r.source_observed_at, now()) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"');
+
+        -- 1. Process RUB transfer calculations for active Russian banks (T-Bank, Sberbank)
         IF r.currency_code = 'RUB' AND r.service_slug IN ('t-bank', 'sberbank') THEN
             SELECT id INTO v_service_id FROM public.transfer_services WHERE slug = r.service_slug AND is_active = true LIMIT 1;
             IF v_service_id IS NULL THEN
@@ -319,7 +315,7 @@ BEGIN
             );
             v_count := v_count + 1;
 
-        -- Process NBT reference rates
+        -- 2. Process NBT reference rates (RUB, USD, EUR, CNY, KZT)
         ELSIF r.service_slug = 'nbt-reference' AND r.currency_code IN ('RUB', 'USD', 'EUR', 'CNY', 'KZT') THEN
             SELECT coalesce(max(revision), 0) + 1 INTO v_revision
             FROM public.national_bank_rates
@@ -338,8 +334,8 @@ BEGIN
             END IF;
             v_count := v_count + 1;
 
-        -- Process Commercial Bank Card rates (RUB/USD/EUR) for Rates in Tajikistan card
-        ELSIF r.service_slug = 'bank-card' AND r.currency_code IN ('RUB', 'USD', 'EUR') THEN
+        -- 3. Process Commercial Bank Card rates (USD, EUR, RUB) for "Rates in Tajikistan"
+        ELSIF r.service_slug = 'bank-card' AND r.currency_code IN ('USD', 'EUR', 'RUB') THEN
             v_card_bank_name := CASE r.bank_code
                 WHEN 'ibt' THEN 'IBT'
                 WHEN 'activbank' THEN 'Активбанк'
@@ -368,14 +364,16 @@ BEGIN
                 'bank_name', v_card_bank_name,
                 'currency_code', r.currency_code,
                 'tjs_per_unit', r.final_rate,
-                'updated_at', coalesce(r.source_observed_at, now())::text,
+                'updated_at', v_iso_timestamp,
                 'source', 'github_pages_calculated'
             ));
+            v_has_card_rates := true;
             v_count := v_count + 1;
         END IF;
     END LOOP;
 
-    IF v_cards_reset THEN
+    -- Always persist updated card rates if any were processed
+    IF v_has_card_rates THEN
         UPDATE public.app_configuration
         SET value = v_card_rates,
             updated_at = now(),
@@ -392,6 +390,11 @@ BEGIN
     UPDATE public.exchange_rates
     SET is_current = false
     WHERE is_current = true AND destination_bank_name = 'International Bank of Tajikistan';
+
+    -- Ensure inactive services don't have lingering is_current = true rates
+    UPDATE public.exchange_rates
+    SET is_current = false
+    WHERE is_current = true AND service_id IN (SELECT id FROM public.transfer_services WHERE is_active = false);
 
     UPDATE public.rate_calculation_runs
     SET status = 'published',

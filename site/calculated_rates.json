@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-01T16:32:46+05:00",
+  "generated_at": "2026-09-01T16:52:18+05:00",
   "rules_version": 2,
   "anomaly_count": 0,
   "anomalies": [],
@@ -20,7 +20,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -38,7 +38,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -56,7 +56,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -74,7 +74,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -92,7 +92,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -110,7 +110,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -128,7 +128,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -146,7 +146,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -164,7 +164,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "t-bank",
@@ -182,7 +182,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -200,7 +200,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -218,7 +218,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -236,7 +236,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -254,7 +254,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -272,7 +272,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -290,7 +290,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -308,7 +308,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -326,7 +326,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -344,7 +344,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "sberbank",
@@ -362,7 +362,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "nbt-reference",
@@ -380,7 +380,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": null
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "nbt-reference",
@@ -398,7 +398,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": null
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "nbt-reference",
@@ -416,7 +416,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": null
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "nbt-reference",
@@ -434,7 +434,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": null
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "nbt-reference",
@@ -452,7 +452,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": null
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -470,7 +470,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -488,7 +488,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -506,7 +506,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -524,7 +524,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -542,7 +542,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -560,7 +560,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -578,7 +578,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -596,7 +596,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -614,7 +614,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -632,7 +632,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -650,7 +650,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -668,7 +668,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -686,7 +686,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -704,7 +704,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -722,7 +722,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -740,7 +740,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -758,7 +758,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -776,7 +776,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T13:30:00+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -794,7 +794,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -812,7 +812,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -830,7 +830,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -848,7 +848,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -866,7 +866,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -884,7 +884,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -902,7 +902,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -920,7 +920,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -938,7 +938,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "bank-card",
@@ -956,7 +956,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": "2026-09-01T16:32:46+05:00"
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     }
   ],
   "nbt_status": "ok",

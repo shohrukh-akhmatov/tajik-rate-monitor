@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-09-01T16:32:46+05:00",
+  "generated_at": "2026-09-01T16:52:18+05:00",
   "source": "tajik-rate-monitor",
   "status": "ok",
   "rates": [
@@ -20,7 +20,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": null
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "nbt-reference",
@@ -38,7 +38,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": null
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     },
     {
       "service_slug": "nbt-reference",
@@ -56,7 +56,7 @@
       "status": "ok",
       "anomaly_code": null,
       "anomaly_message": null,
-      "source_observed_at": null
+      "source_observed_at": "2026-09-01T16:52:18+05:00"
     }
   ],
   "nbt_status": "ok",
