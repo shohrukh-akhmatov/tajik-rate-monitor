@@ -11,51 +11,17 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <div>
-        <p class="eyebrow">SHOH LABS · DEV TOOL</p>
-        <h1>Tajik Rate Monitor</h1>
-        <p class="sub">Cash and RUB→TJS transfer rates from official Tajik bank websites, plus NBT reference rates and USD/EUR bank diagnostics.</p>
-      </div>
+      <div><p class="eyebrow">SHOH LABS · LIVE API MONITOR</p><h1>Tajik Rate Monitor</h1><p class="sub">All collected, normalized and Supabase-ready rates.</p></div>
       <button id="refresh" class="refresh">Rescan rates</button>
     </header>
-
-    <section class="summary" aria-live="polite">
-      <div><span>Collector</span><strong id="generated">—</strong></div>
-      <div><span>Healthy</span><strong id="healthy">—</strong></div>
-      <div><span>Stale / failed</span><strong id="failed">—</strong></div>
-    </section>
-
-    <section class="controls">
-      <label><input id="onlyPrimary" type="checkbox" checked> Emphasize transfer rate</label>
-      <label>Sber adjustment <input id="sberPct" type="number" value="1.5" min="0" max="10" step="0.1">%</label>
-    </section>
-
+    <section class="summary" aria-live="polite"><div><span>Collector</span><strong id="generated">—</strong></div><div><span>Healthy</span><strong id="healthy">—</strong></div><div><span>Stale / failed</span><strong id="failed">—</strong></div></section>
     <div id="alert" class="alert hidden"></div>
-    <section id="banks" class="bank-grid"></section>
-
-    <section id="referenceRates" class="history-section">
-      <div class="section-title">
-        <h2>NBT & USD/EUR reference rates</h2>
-        <span id="referenceStatus">—</span>
-      </div>
-      <div id="referenceContent" class="history-list"></div>
-    </section>
-
-    <section class="history-section">
-      <div class="section-title">
-        <h2>Recent cash / transfer changes</h2>
-        <span id="historyCount">—</span>
-      </div>
-      <div id="history" class="history-list"></div>
-    </section>
-
-    <footer>
-      <a href="results.json">Raw results.json</a>
-      <span>·</span>
-      <a href="history.json">history.json</a>
-      <span>·</span>
-      <a href="https://github.com/shohrukh-akhmatov/tajik-rate-monitor">Repository</a>
-    </footer>
+    <section id="apiMonitor" class="history-section"><div class="section-title"><h2>Supabase-ready API</h2><span>Live JSON</span></div></section>
+    <section class="history-section"><div class="section-title"><h2>Calculated transfer rates</h2><span>T-Bank / Sberbank</span></div><div id="calculatedRates" class="history-list"></div></section>
+    <section class="history-section"><div class="section-title"><h2>Bank source observations</h2><span>RUB</span></div><div id="banks" class="bank-grid"></div></section>
+    <section id="referenceRates" class="history-section"><div class="section-title"><h2>NBT, USD & EUR</h2><span id="referenceStatus">Live</span></div><div id="referenceContent" class="history-list"></div></section>
+    <section class="history-section"><div class="section-title"><h2>Recent cash / transfer changes</h2><span id="historyCount">—</span></div><div id="history" class="history-list"></div></section>
+    <footer><a href="api/rates.json">RUB API</a><span>·</span><a href="api/banks.json">USD/EUR API</a><span>·</span><a href="api/nbt.json">NBT API</a><span>·</span><a href="api/calculated.json">Calculated API</a><span>·</span><a href="results.json">Raw results</a><span>·</span><a href="https://github.com/shohrukh-akhmatov/tajik-rate-monitor">Repository</a></footer>
   </main>
 <script src="app.js"></script>
 </body>
