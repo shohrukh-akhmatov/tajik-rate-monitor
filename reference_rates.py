@@ -15,7 +15,7 @@ from monitor import BANKS, USER_AGENT, try_click_category, visible_text
 TZ = ZoneInfo("Asia/Dushanbe")
 RESULTS = "site/results.json"
 NBT_API = "https://nbt.tj/en/kurs/rate_export.php"
-NBT_HTML = "https://nbt.tj/tj/kurs/kurs.php"
+NBT_HTML = "https://nbt.tj/en/kurs/kurs.php"
 ALIF_API = "https://alif.tj/api/rates"
 CURRENCIES = {"USD": (5.0, 20.0), "EUR": (7.0, 20.0), "RUB": (0.05, 0.20), "CNY": (0.5, 3.0), "KZT": (0.01, 0.20)}
 NBT_CODES = {"840": "USD", "978": "EUR", "810": "RUB", "156": "CNY", "398": "KZT"}
@@ -25,41 +25,58 @@ def now_iso() -> str:
     return datetime.now(TZ).isoformat(timespec="seconds")
 
 
-def number_tokens(text: str, currency: str) -> list[float]:
-    lo, hi = CURRENCIES[currency]
-    values: list[float] = []
-    for token in re.findall(r"(?<!\d)(\d{1,2}[.,]\d{3,6})(?!\d)", text):
+def parse_nbt_api(data: Any) -> dict[str, Any]:
+    out: dict[str, Any] = {
+        "source": NBT_API,
+        "source_type": "official_api_primary",
+        "status": "error",
+        "updated_at": None,
+        "currencies": list(NBT_CODES.values()),
+        "rates": {},
+    }
+    if not isinstance(data, dict) or data.get("success") is not True:
+        out["error"] = "NBT API response is not a successful payload."
+        return out
+    records = data.get("data")
+    if not isinstance(records, list):
+        out["error"] = "NBT API data field is missing or not a list."
+        return out
+    out["updated_at"] = (data.get("period_info") or {}).get("date")
+    for item in records:
+        if not isinstance(item, dict):
+            continue
+        code = str(item.get("Code", "")).zfill(3)
+        currency = NBT_CODES.get(code)
+        if not currency:
+            continue
         try:
-            value = float(token.replace(",", "."))
-        except ValueError:
+            nominal = float(str(item.get("Nominal", "1")).replace(",", "."))
+            rate = float(str(item["Rate"]).replace(",", "."))
+        except (KeyError, TypeError, ValueError):
             continue
-        if lo <= value <= hi and value not in values:
-            values.append(value)
-    return values
-
-
-def pair_from_text(text: str, currency: str, pair_order: str = "buy_sell") -> dict[str, Any] | None:
-    lines = [re.sub(r"\s+", " ", x).strip() for x in text.splitlines() if x.strip()]
-    for i, line in enumerate(lines):
-        if currency not in line.upper():
+        if nominal <= 0:
             continue
-        raw = " ".join(lines[i:i + 5])
-        values = number_tokens(raw, currency)
-        if len(values) >= 2:
-            a, b = values[:2]
-            if pair_order == "sell_buy":
-                a, b = b, a
-            return {"buy": a, "sell": b, "raw": raw[:300]}
-        if len(values) == 1:
-            return {"buy": values[0], "sell": None, "raw": raw[:300]}
-    return None
+        out["rates"][currency] = {
+            "rate": rate,
+            "nominal": nominal,
+            "per_unit": rate / nominal,
+            "date": item.get("Date") or out["updated_at"],
+        }
+    if all(currency in out["rates"] for currency in NBT_CODES.values()):
+        out["status"] = "ok"
+    elif out["rates"]:
+        out["status"] = "partial"
+        out["missing"] = [c for c in NBT_CODES.values() if c not in out["rates"]]
+    else:
+        out["error"] = "No configured NBT currency rows recognized in API response."
+    return out
 
 
 def parse_nbt_html(html: str) -> dict[str, Any]:
     from html import unescape
     out: dict[str, Any] = {
         "source": NBT_HTML,
-        "source_type": "official_html_primary",
+        "source_type": "official_html_fallback",
         "status": "error",
         "updated_at": None,
         "currencies": list(NBT_CODES.values()),
@@ -69,15 +86,11 @@ def parse_nbt_html(html: str) -> dict[str, Any]:
         text = unescape(re.sub(r"<[^>]+>", " ", html))
         text = re.sub(r"\s+", " ", text)
         for code, currency in NBT_CODES.items():
-            m = re.search(rf"\b{code}\b\s+(\d+)\s+([0-9]+[.,][0-9]+)", text)
+            m = re.search(rf"\b{code}\b\s+(\d+(?:\.\d+)?)\s+[^0-9]+\s+([0-9]+[.,][0-9]+)", text)
             if m:
-                nominal = int(m.group(1))
+                nominal = float(m.group(1))
                 rate = float(m.group(2).replace(",", "."))
-                out["rates"][currency] = {
-                    "rate": rate,
-                    "nominal": nominal,
-                    "per_unit": rate / nominal,
-                }
+                out["rates"][currency] = {"rate": rate, "nominal": nominal, "per_unit": rate / nominal}
         if len(out["rates"]) == len(NBT_CODES):
             out["status"] = "ok"
         elif out["rates"]:
@@ -90,44 +103,38 @@ def parse_nbt_html(html: str) -> dict[str, Any]:
     return out
 
 
-def check_nbt_api() -> dict[str, Any]:
-    """Keep the API as a diagnostic/secondary source; HTML remains authoritative for now."""
+def nbt_rates() -> dict[str, Any]:
+    """Use NBT's documented JSON API as primary, with official HTML as fallback."""
+    api_error = None
     try:
         r = requests.get(
             NBT_API,
-            timeout=8,
+            timeout=15,
             headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
         )
-        result: dict[str, Any] = {"status": "ok" if r.ok else f"http_{r.status_code}"}
-        try:
-            data = r.json()
-            result["response_type"] = type(data).__name__
-            result["has_data"] = bool(data)
-        except Exception:
-            result["response_type"] = "non_json"
-            result["has_data"] = bool(r.text.strip())
-        return result
+        r.raise_for_status()
+        out = parse_nbt_api(r.json())
+        out["api_http_status"] = r.status_code
+        if out["status"] == "ok":
+            return out
+        api_error = out.get("error") or f"NBT API status: {out['status']}"
     except Exception as exc:
-        return {"status": f"error:{type(exc).__name__}", "has_data": False}
+        api_error = f"{type(exc).__name__}: {exc}"
 
-
-def nbt_rates() -> dict[str, Any]:
-    """Primary: official NBT HTML. Secondary: retain API health/data diagnostic."""
     try:
         r = requests.get(NBT_HTML, timeout=20, headers={"User-Agent": USER_AGENT})
         r.raise_for_status()
         out = parse_nbt_html(r.text)
-        out["api"] = check_nbt_api()
+        out["api_error"] = api_error
         return out
     except Exception as exc:
         return {
-            "source": NBT_HTML,
-            "source_type": "official_html_primary",
+            "source": NBT_API,
+            "source_type": "official_api_primary",
             "status": "error",
             "currencies": list(NBT_CODES.values()),
             "rates": {},
-            "error": f"{type(exc).__name__}: {exc}",
-            "api": check_nbt_api(),
+            "error": f"API: {api_error}; HTML: {type(exc).__name__}: {exc}",
         }
 
 
@@ -199,7 +206,6 @@ async def collect_bank_fx() -> dict[str, Any]:
                     except Exception:
                         pass
                     await page.wait_for_timeout(700)
-                    # USD/EUR: Cards first. Cash is the only fallback. Never use Transfers.
                     eligible = [(key, label) for key, label in bank.categories if key in ("card", "cash")]
                     ordered = sorted(eligible, key=lambda item: 0 if item[0] == "card" else 1)
                     for key, label in ordered:
@@ -237,14 +243,14 @@ async def main() -> None:
         "alif_api": alif_api(),
         "banks": await collect_bank_fx(),
         "bank_usd_eur_policy": "Card first; Cash fallback; never Transfers.",
-        "note": "NBT official HTML is the primary source. NBT API is retained as a diagnostic/secondary source. USD/EUR bank quotes are monitoring data only until verified for the intended product.",
+        "note": "NBT official JSON API is primary with official HTML fallback. USD/EUR bank quotes are monitoring data only until verified for the intended product.",
     }
     with open(RESULTS, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
     print(json.dumps({
         "nbt_status": payload["reference_rates"]["nbt"]["status"],
         "nbt_currencies_found": sorted(payload["reference_rates"]["nbt"]["rates"]),
-        "nbt_api_status": payload["reference_rates"]["nbt"]["api"]["status"],
+        "nbt_source_type": payload["reference_rates"]["nbt"]["source_type"],
         "alif_api_status": payload["reference_rates"]["alif_api"]["status"],
         "bank_sources": len(payload["reference_rates"]["banks"]),
     }, ensure_ascii=False))
