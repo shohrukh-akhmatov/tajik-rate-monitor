@@ -17,13 +17,12 @@ def valid_rub(v):
     try:return .05<=float(v)<=.20
     except:return False
 def main():
-    payload=json.loads(RESULTS.read_text(encoding='utf-8')); rules=json.loads(RULES.read_text(encoding='utf-8')); banks={b['id']:b for b in payload.get('banks',[])}; previous=fetch_json(PUBLIC_RESULTS) or {}; previous_calculated=fetch_json(PUBLIC_CALCULATED) or {}; reference=payload.get('reference_rates') or {}; previous_ref=previous.get('reference_rates',{}); old_banks={b.get('id'):b for b in previous.get('banks',[])}
-    alif=((reference.get('alif_api') or {}).get('rates') or {}).get('RUB') or {}; api_base=alif.get('buy'); alif_bank=banks.get('alif',{}); tr=((alif_bank.get('rates') or {}).get('transfer') or {}); obs=tr.get('buy_per_1000'); obs_base=float(obs)/1000 if obs is not None else None
-    old_rates=previous_calculated.get('rates',[]); last_valid_by_bank={}
+    payload=json.loads(RESULTS.read_text(encoding='utf-8')); rules=json.loads(RULES.read_text(encoding='utf-8')); banks={b['id']:b for b in payload.get('banks',[])}; previous=fetch_json(PUBLIC_RESULTS) or {}; previous_calculated=fetch_json(PUBLIC_CALCULATED) or {}; reference=payload.get('reference_rates') or {}; previous_ref=previous.get('reference_rates',{}); old_rates=previous_calculated.get('rates',[]); last_valid_by_bank={}
     for row in old_rates:
         if row.get('currency_code')=='RUB' and valid_rub(row.get('base_rate')):
             key=(row.get('service_slug'),row.get('bank_code'))
-            if key not in last_valid_by_bank: last_valid_by_bank[key]=float(row['base_rate'])
+            if key not in last_valid_by_bank:last_valid_by_bank[key]=float(row['base_rate'])
+    alif=((reference.get('alif_api') or {}).get('rates') or {}).get('RUB') or {}; api_base=alif.get('buy'); alif_bank=banks.get('alif',{}); tr=((alif_bank.get('rates') or {}).get('transfer') or {}); obs=tr.get('buy_per_1000'); obs_base=float(obs)/1000 if obs is not None else None
     if valid_rub(api_base): alif_base=float(api_base); alif_source='alif_api'
     elif valid_rub(obs_base): alif_base=obs_base; alif_source='alif_transfer_observation'
     else: alif_base=None; alif_source='missing'
@@ -31,13 +30,9 @@ def main():
     for service_slug,service in rules['services'].items():
         for bank_code,coef in service.get('coefficients',{}).items():
             bank=banks.get(bank_code,{}); transfer=(bank.get('rates') or {}).get('transfer') or {}; direct=transfer.get('buy_per_1000')
-            # Deterministic order for every route: own current quote -> Alif -> exact route's last valid quote.
-            if direct is not None and valid_rub(float(direct)/1000):
-                base=float(direct)/1000; src_bank=bank_code; src_kind='bank_transfer_observation'
-            elif alif_base is not None:
-                base=alif_base; src_bank='alif'; src_kind=alif_source
-            else:
-                base=last_valid_by_bank.get((service_slug,bank_code)); src_bank=bank_code; src_kind='last_valid_route' if base is not None else 'missing'
+            if direct is not None and valid_rub(float(direct)/1000): base=float(direct)/1000; src_bank=bank_code; src_kind='bank_transfer_observation'
+            elif alif_base is not None: base=alif_base; src_bank='alif'; src_kind=alif_source
+            else: base=last_valid_by_bank.get((service_slug,bank_code)); src_bank=bank_code; src_kind='last_valid_route' if base is not None else 'missing'
             if base is None:
                 anomalies.append({'service_slug':service_slug,'bank_code':bank_code,'code':'MISSING_BASE','message':'No usable base after own quote, Alif API/observation and exact-route last-valid fallback.'}); continue
             old_base=None
@@ -52,9 +47,12 @@ def main():
     for currency in ('RUB','USD','EUR'):
         item=(nbt.get('rates') or {}).get(currency)
         if not item: continue
-        value=float(item['rate']); bounds=(ar['min_nbt_rub'],ar['max_nbt_rub']) if currency=='RUB' else ((ar['min_nbt_usd'],ar['max_nbt_usd']) if currency=='USD' else (ar['min_nbt_eur'],ar['max_nbt_eur'])); bad=not bounds[0]<=value<=bounds[1]
-        if bad: anomalies.append({'service_slug':'nbt-reference','bank_code':'nbt','code':'NBT_OUTLIER','message':f'{currency} NBT value {value} outside configured bounds'})
-        rows.append({'service_slug':'nbt-reference','bank_code':'nbt','bank_name':'National Bank of Tajikistan','currency_code':currency,'base_rate':value,'base_source_bank_code':'nbt','base_source_kind':'official_nbt','coefficient':1.0,'raw_calculated_rate':value,'final_rate':value,'sample_source_amount':item.get('nominal') or 1,'sample_target_amount':value,'status':'anomaly' if bad else 'ok','anomaly_code':'NBT_OUTLIER' if bad else None,'anomaly_message':None,'source_observed_at':item.get('date')})
+        # NBT's Rate is for its declared Nominal. Publish the normalized per-unit value.
+        value=float(item.get('per_unit') if item.get('per_unit') is not None else float(item['rate'])/float(item.get('nominal') or 1))
+        bounds=(ar['min_nbt_rub'],ar['max_nbt_rub']) if currency=='RUB' else ((ar['min_nbt_usd'],ar['max_nbt_usd']) if currency=='USD' else (ar['min_nbt_eur'],ar['max_nbt_eur']))
+        bad=not bounds[0]<=value<=bounds[1]
+        if bad: anomalies.append({'service_slug':'nbt-reference','bank_code':'nbt','code':'NBT_OUTLIER','message':f'{currency} NBT per-unit value {value} outside configured bounds'})
+        rows.append({'service_slug':'nbt-reference','bank_code':'nbt','bank_name':'National Bank of Tajikistan','currency_code':currency,'base_rate':value,'base_source_bank_code':'nbt','base_source_kind':'official_nbt','coefficient':1.0,'raw_calculated_rate':value,'final_rate':value,'sample_source_amount':1,'sample_target_amount':value,'status':'anomaly' if bad else 'ok','anomaly_code':'NBT_OUTLIER' if bad else None,'anomaly_message':None,'source_observed_at':item.get('date') or nbt.get('updated_at')})
     commercial=(nbt.get('commercial_banks') or {})
     for bank_code,bd in commercial.items():
         for currency in ('USD','EUR'):
