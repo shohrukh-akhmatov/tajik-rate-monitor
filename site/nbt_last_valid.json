@@ -1,0 +1,154 @@
+{
+  "source": "https://nbt.tj/en/kurs/kurs.php",
+  "source_type": "official_html_fallback",
+  "status": "ok",
+  "updated_at": null,
+  "currencies": [
+    "USD",
+    "EUR",
+    "RUB",
+    "CNY",
+    "KZT"
+  ],
+  "rates": {
+    "USD": {
+      "rate": 9.2482,
+      "nominal": 1.0,
+      "per_unit": 9.2482
+    },
+    "EUR": {
+      "rate": 10.727,
+      "nominal": 1.0,
+      "per_unit": 10.727
+    },
+    "RUB": {
+      "rate": 0.1067,
+      "nominal": 1.0,
+      "per_unit": 0.1067
+    },
+    "CNY": {
+      "rate": 1.376,
+      "nominal": 1.0,
+      "per_unit": 1.376
+    },
+    "KZT": {
+      "rate": 0.2,
+      "nominal": 10.0,
+      "per_unit": 0.02
+    }
+  },
+  "commercial_banks": {
+    "alif": {
+      "name": "OJSC \"Alif Bank\"",
+      "USD": {
+        "card_buy": 9.22,
+        "card_sell": 9.27
+      },
+      "date": "01.09.2026 09:12",
+      "EUR": {
+        "card_buy": 10.58,
+        "card_sell": 10.78
+      }
+    },
+    "amonat": {
+      "name": "SUE SB RT \"Amonatbonk\"",
+      "USD": {
+        "card_buy": 9.17,
+        "card_sell": 9.26
+      },
+      "date": "01.09.2026 09:12",
+      "EUR": {
+        "card_buy": 10.65,
+        "card_sell": 10.85
+      }
+    },
+    "eskhata": {
+      "name": "OJSC \"Eskhata bank\"",
+      "USD": {
+        "card_buy": 9.18,
+        "card_sell": 9.27
+      },
+      "date": "01.09.2026 09:12",
+      "EUR": {
+        "card_buy": 10.58,
+        "card_sell": 10.77
+      }
+    },
+    "activbank": {
+      "name": "CJSC \"Activ Bank\"",
+      "USD": {
+        "card_buy": 9.2,
+        "card_sell": 9.27
+      },
+      "date": "01.09.2026 09:12",
+      "EUR": {
+        "card_buy": 10.61,
+        "card_sell": 10.82
+      }
+    },
+    "humo": {
+      "name": "LLC MDO \"Humo\"",
+      "USD": {
+        "card_buy": 9.17,
+        "card_sell": 9.27
+      },
+      "date": "01.09.2026 09:12",
+      "EUR": {
+        "card_buy": 10.72,
+        "card_sell": 10.82
+      }
+    },
+    "ibt": {
+      "name": "CJSC \"International Bank of Tajikistan\"",
+      "USD": {
+        "card_buy": 9.18,
+        "card_sell": 9.27
+      },
+      "date": "01.09.2026 09:12",
+      "EUR": {
+        "card_buy": 10.6,
+        "card_sell": 10.81
+      }
+    },
+    "oriyon": {
+      "name": "OJSC \"Oriyonbоnk\"",
+      "USD": {
+        "card_buy": 9.2,
+        "card_sell": 9.28
+      },
+      "date": "01.09.2026 09:12",
+      "EUR": {
+        "card_buy": 10.45,
+        "card_sell": 10.85
+      }
+    },
+    "spitamen": {
+      "name": "CJSC \"Spitamen Bank\"",
+      "USD": {
+        "card_buy": 9.15,
+        "card_sell": 9.35
+      },
+      "date": "01.09.2026 09:12",
+      "EUR": {
+        "card_buy": 10.2,
+        "card_sell": 11.0
+      }
+    },
+    "vasl": {
+      "name": "JSC \"Vasl Bank\"",
+      "USD": {
+        "card_buy": 9.15,
+        "card_sell": 9.28
+      },
+      "date": "01.09.2026 09:12",
+      "EUR": {
+        "card_buy": 10.45,
+        "card_sell": 10.9
+      }
+    }
+  },
+  "commercial_banks_stale": [],
+  "commercial_banks_source": "NBT current publication + last valid NBT publication per missing bank/currency",
+  "cached_at": "2026-09-01T13:50:14+05:00",
+  "cache_source": "https://nbt.tj/en/kurs/kurs.php"
+}

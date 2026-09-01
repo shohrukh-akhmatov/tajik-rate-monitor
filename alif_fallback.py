@@ -4,7 +4,8 @@ from pathlib import Path
 import requests
 
 RESULTS=Path('site/results.json')
-URLS=('https://api.alif.tj/api/rates','https://alif.tj/api/rates')
+URLS = ('https://alif.tj/api/rates',)
+CURR_MAP = {'RUB': 'RUB', 'USD': 'USD', 'EUR': 'EUR', '810': 'RUB', '840': 'USD', '978': 'EUR'}
 
 def num(v):
     try: return float(str(v).replace(',','.').replace(' ',''))
@@ -13,20 +14,23 @@ def num(v):
 def scan(v,out):
     if isinstance(v,dict):
         code=None
-        for k in ('currency','currencyCode','currency_code','code','ccy','symbol','ticker'):
+        for k in ('name','currency','currencyCode','currency_code','code','ccy','symbol','ticker'):
             x=v.get(k)
-            if isinstance(x,str) and x.upper() in ('RUB','USD','EUR'): code=x.upper(); break
+            if isinstance(x,str) and str(x).upper() in CURR_MAP:
+                code=CURR_MAP[str(x).upper()]; break
         if code:
             buy=sell=None
-            # Prefer explicit transfer fields used by Alif; only then inspect generic buy/sell fields.
             preferred={
-                'buy': ('moneyTransferBuyValue','money_transfer_buy_value','transferBuy','transfer_buy'),
-                'sell': ('moneyTransferSellValue','money_transfer_sell_value','transferSell','transfer_sell')}
+                'buy': ('moneyTransferBuyValue','money_transfer_buy_value','buyValue','buy_value','transferBuy','transfer_buy'),
+                'sell': ('moneyTransferTradeValue','money_transfer_trade_value','sellValue','sell_value','transferSell','transfer_sell')}
             for typ,keys in preferred.items():
                 for k in keys:
                     if k in v:
                         n=num(v[k])
-                        if n is not None: (globals()['__dummy'] if False else None); buy=n if typ=='buy' else buy; sell=n if typ=='sell' else sell; break
+                        if n is not None:
+                            if typ=='buy': buy=n
+                            else: sell=n
+                            break
             if buy is None or sell is None:
                 for k,x in v.items():
                     n=num(x)

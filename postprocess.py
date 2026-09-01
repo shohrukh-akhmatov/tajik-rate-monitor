@@ -353,10 +353,12 @@ def normalize_existing(payload: dict) -> None:
         if bank_id in {"eskhata", "activbank"} and "retail" in rates and "cash" not in rates:
             rates["cash"] = dict(rates["retail"])
             rates["cash"]["label"] = "Cash"
+            del rates["retail"]
 
         if bank_id == "vasl" and "generic" in rates:
             rates["cash"] = dict(rates["generic"])
             rates["cash"]["label"] = "Cash"
+            del rates["generic"]
             bank["primary_category"] = None
             bank["note"] = (
                 "Vasl publishes one general Exchange Rates table. It is shown as Cash/standard rate; "

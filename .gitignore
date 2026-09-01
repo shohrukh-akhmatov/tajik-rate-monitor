@@ -1,0 +1,26 @@
+﻿# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Playwright
+test-results/
+playwright-report/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

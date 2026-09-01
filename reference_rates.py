@@ -22,8 +22,28 @@ ALIF_API = "https://alif.tj/api/rates"
 NBT_CACHE = Path("site/nbt_last_valid.json")
 CURRENCIES = {"USD": (5.0, 20.0), "EUR": (7.0, 20.0), "RUB": (0.05, 0.20), "CNY": (0.5, 3.0), "KZT": (0.01, 0.20)}
 NBT_CODES = {"840": "USD", "978": "EUR", "810": "RUB", "156": "CNY", "398": "KZT"}
-MAX_STALE_DAYS = 7
-BANK_NAME_MAP = {"alif": "alif", "amonat": "amonatbank", "eskhata": "eskhata", "activ": "activbank", "humo": "humo", "international bank of tajikistan": "ibt", "ibt": "ibt", "oriyon": "oriyonbank", "spitamen": "spitamen", "vasl": "vasl", "dushanbe city": "dcity", "duşanbe city": "dcity", "d city": "dcity"}
+BANK_NAME_MAP = {
+    "alif": "alif",
+    "amonat": "amonat",
+    "amonatbank": "amonat",
+    "amonatbonk": "amonat",
+    "eskhata": "eskhata",
+    "activ": "activbank",
+    "activ bank": "activbank",
+    "activbank": "activbank",
+    "humo": "humo",
+    "international bank of tajikistan": "ibt",
+    "ibt": "ibt",
+    "oriyon": "oriyon",
+    "oriyonbank": "oriyon",
+    "oriyonbonk": "oriyon",
+    "spitamen": "spitamen",
+    "vasl": "vasl",
+    "dushanbe city": "dc",
+    "duşanbe city": "dc",
+    "d city": "dc",
+    "dc": "dc",
+}
 
 
 def now_iso() -> str:
@@ -97,25 +117,24 @@ def parse_nbt_commercial_html(html: str, currency: str) -> dict[str, Any]:
 
 
 async def fetch_nbt_commercial(currency: str) -> dict[str, Any]:
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=["--disable-dev-shm-usage"])
-        try:
-            page = await browser.new_page(user_agent=USER_AGENT, locale="en-US", timezone_id="Asia/Dushanbe")
-            await page.goto(NBT_COMMERCIAL_HTML, wait_until="domcontentloaded", timeout=35000)
-            if currency == "EUR":
-                selects = page.locator("select"); selected = False
-                for i in range(await selects.count()):
-                    sel = selects.nth(i)
-                    for opt in await sel.locator("option").all():
-                        text = (await opt.inner_text()).strip().upper(); value = (await opt.get_attribute("value") or "").upper()
-                        if text == "EUR" or value in {"EUR", "978"}:
-                            option_value = await opt.get_attribute("value")
-                            if option_value is not None: await sel.select_option(value=option_value)
-                            selected = True; break
-                    if selected: break
-                await page.wait_for_timeout(1000)
-            return parse_nbt_commercial_html(await page.content(), currency)
-        finally: await browser.close()
+    try:
+        r = requests.get(
+            NBT_COMMERCIAL_HTML,
+            params={"currency": currency},
+            timeout=20,
+            headers={"User-Agent": USER_AGENT},
+        )
+        r.raise_for_status()
+        return parse_nbt_commercial_html(r.text, currency)
+    except Exception as exc:
+        return {
+            "source": NBT_COMMERCIAL_HTML,
+            "source_type": "official_nbt_commercial_cards",
+            "status": "error",
+            "currency": currency,
+            "commercial_banks": {},
+            "error": f"{type(exc).__name__}: {exc}",
+        }
 
 
 def valid_nbt(out: dict[str, Any]) -> bool:
@@ -179,11 +198,49 @@ async def nbt_rates() -> dict[str, Any]:
     return fx
 
 
+def parse_alif_payload(data: Any) -> dict[str, dict[str, float | None]]:
+    rates: dict[str, dict[str, float | None]] = {}
+    if not isinstance(data, dict):
+        return rates
+    local_rates = data.get("localRates")
+    if isinstance(local_rates, list):
+        for item in local_rates:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name", "")).strip().upper()
+            code = str(item.get("currencyCode", "")).strip()
+            curr = name if name in CURRENCIES else NBT_CODES.get(code)
+            if not curr:
+                continue
+
+            def _get_val(*keys: str) -> float | None:
+                for k in keys:
+                    if item.get(k) is not None:
+                        try:
+                            v = float(str(item[k]).replace(",", "."))
+                            bounds = CURRENCIES.get(curr, (0.01, 100))
+                            if bounds[0] <= v <= bounds[1]:
+                                return v
+                        except (ValueError, TypeError):
+                            pass
+                return None
+
+            buy = _get_val("moneyTransferBuyValue", "buyValue", "visaBuyValue", "nonCashBuyValue")
+            sell = _get_val("moneyTransferTradeValue", "sellValue", "visaSellValue", "nonCashSellValue")
+            if buy is not None or sell is not None:
+                rates[curr] = {"buy": buy, "sell": sell, "currency": curr}
+    if not rates:
+        rates = find_alif_quotes(data)
+    return rates
+
+
 def find_alif_quotes(value: Any, found: dict[str, dict[str, float | None]] | None = None):
     if found is None: found = {}
     if isinstance(value, dict):
-        code = next((str(value.get(k)).upper() for k in ("currency", "currencyCode", "code", "ccy", "symbol", "ticker") if isinstance(value.get(k), str) and str(value.get(k)).upper() in CURRENCIES), None)
-        if code:
+        code = next((str(value.get(k)).upper() for k in ("name", "currency", "currencyCode", "code", "ccy", "symbol", "ticker") if isinstance(value.get(k), str) and (str(value.get(k)).upper() in CURRENCIES or str(value.get(k)) in NBT_CODES)), None)
+        if code in NBT_CODES:
+            code = NBT_CODES[code]
+        if code and code in CURRENCIES:
             buy = sell = None
             for key, raw in value.items():
                 if not isinstance(raw, (int, float, str)): continue
@@ -193,7 +250,7 @@ def find_alif_quotes(value: Any, found: dict[str, dict[str, float | None]] | Non
                 k = str(key).lower()
                 if any(x in k for x in ("buy", "purchase", "bid", "pokup")): buy = num
                 elif any(x in k for x in ("sell", "sale", "ask", "prodaj")): sell = num
-            if buy is not None or sell is not None: found[code] = {"buy": buy, "sell": sell}
+            if buy is not None or sell is not None: found[code] = {"buy": buy, "sell": sell, "currency": code}
         for child in value.values(): find_alif_quotes(child, found)
     elif isinstance(value, list):
         for child in value: find_alif_quotes(child, found)
@@ -203,9 +260,17 @@ def find_alif_quotes(value: Any, found: dict[str, dict[str, float | None]] | Non
 def alif_api() -> dict[str, Any]:
     out = {"source": ALIF_API, "status": "error", "rates": {}}
     try:
-        r = requests.get(ALIF_API, timeout=15, headers={"User-Agent": USER_AGENT, "Accept": "application/json"}); r.raise_for_status(); data = r.json(); out["status"] = "ok"; out["rates"] = find_alif_quotes(data)
-        if not out["rates"]: out["note"] = "API responded, but no recognized buy/sell fields were found."
-    except Exception as exc: out["error"] = f"{type(exc).__name__}: {exc}"
+        r = requests.get(ALIF_API, timeout=15, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
+        r.raise_for_status()
+        data = r.json()
+        rates = parse_alif_payload(data)
+        if rates:
+            out["status"] = "ok"
+            out["rates"] = rates
+        else:
+            out["note"] = "API responded, but no recognized buy/sell fields were found."
+    except Exception as exc:
+        out["error"] = f"{type(exc).__name__}: {exc}"
     return out
 
 
