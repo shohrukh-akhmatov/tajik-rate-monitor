@@ -16,6 +16,8 @@ on:
         required: false
         default: false
         type: boolean
+  schedule:
+    - cron: '13,43 3-14 * * *'
 
 permissions:
   contents: read
@@ -23,10 +25,10 @@ permissions:
   id-token: write
 
 env:
-  SCAN_MODE: ${{ inputs.scan_mode || 'daily' }}
+  SCAN_MODE: ${{ inputs.scan_mode || (github.event_name == 'schedule' && 'daily' || 'rub') }}
 
 concurrency:
-  group: tajik-rate-monitor-${{ inputs.scan_mode || 'daily' }}
+  group: tajik-rate-monitor-${{ inputs.scan_mode || (github.event_name == 'schedule' && 'daily' || 'rub') }}
   cancel-in-progress: true
 
 jobs:
@@ -81,6 +83,12 @@ jobs:
         run: python telegram_warning.py
       - name: Generate public JSON API
         run: python publish_api.py
+      - name: Sync validated final data to Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RATE_SCAN_MODE: ${{ env.SCAN_MODE }}
+        run: python sync_supabase.py
       - name: Check for anomalies
         id: anomaly_check
         run: echo "count=$(python -c 'import json; print(len(json.load(open("site/anomalies.json", encoding="utf-8"))["anomalies"]))' )" >> "$GITHUB_OUTPUT"
