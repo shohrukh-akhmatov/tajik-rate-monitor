@@ -1,7 +1,9 @@
 """Install stub requests/playwright modules so pure functions can be tested
 without the runtime dependencies or any network access."""
 
+import os
 import sys
+import tempfile
 import types
 
 
@@ -14,6 +16,9 @@ def _deny(*args, **kwargs):
 
 
 def install():
+    # Run in a scratch dir so importing monitor (which mkdirs ./site) does not
+    # pollute the repository working tree.
+    os.chdir(tempfile.mkdtemp(prefix="rate_monitor_tests_"))
     if "requests" in sys.modules:
         return
     requests_stub = types.ModuleType("requests")
