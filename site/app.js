@@ -1,95 +1,26 @@
 const $ = s => document.querySelector(s);
 const banksEl = $('#banks');
 const fmt = (n,d=2) => n == null ? '—' : Number(n).toFixed(d);
-const rateKey = id => `tajik-rate-monitor:observed:${id}`;
 const statusText = s => ({ok:'LIVE',partial:'PARTIAL',stale:'STALE',error:'ERROR',no_rate:'NO RATE'})[s] || String(s||'').toUpperCase();
-const suitabilityText = s => ({direct_candidate:'DIRECT CANDIDATE',verify_app:'VERIFY APP',experimental:'EXPERIMENTAL',wrong_rate_class:'WRONG RATE CLASS',unsupported:'UNSUPPORTED'})[s] || s;
-const visibleRateKeys = ['cash','transfer'];
-const RESCAN_ENDPOINT = 'https://iufslbdtryxspuwsfbqn.supabase.co/functions/v1/rescan-rates';
-const RESCAN_POLL_MS = 8000;
-const RESCAN_TIMEOUT_MS = 4 * 60 * 1000;
-let data = null;
-let historyData = [];
-let refreshResetTimer = null;
-
-function sleep(ms){ return new Promise(resolve=>setTimeout(resolve,ms)); }
-function primaryRate(bank){
-  if(bank.rates?.transfer?.buy_per_1000 != null) return bank.rates.transfer.buy_per_1000;
-  if(bank.primary_category && visibleRateKeys.includes(bank.primary_category) && bank.rates?.[bank.primary_category]?.buy_per_1000 != null) return bank.rates[bank.primary_category].buy_per_1000;
-  return null;
+const RESCAN_ENDPOINT='https://iufslbdtryxspuwsfbqn.supabase.co/functions/v1/rescan-rates';
+const API_BASE='./api/';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let data=null, historyData=[];
+async function getJSON(name){const r=await fetch(`${API_BASE}${name}?t=${Date.now()}`,{cache:'no-store'});if(!r.ok)throw Error(`${name}: HTTP ${r.status}`);return r.json();}
+function fmtFx(n){return n==null?'—':Number(n).toFixed(4)}
+function renderApi(){
+  const apiBox=$('#apiMonitor'); if(!apiBox)return;
+  const rub=data?.api?.rates?.rates||[]; const nbt=data?.api?.nbt?.rates||[]; const banks=data?.api?.banks?.rates||[];
+  const all=[...rub,...nbt,...banks];
+  apiBox.innerHTML=`<div class="api-summary"><strong>Supabase-ready API</strong><span>${all.length} records</span><span>${data?.api?.rates?.status==='needs_review'?'⚠ NEEDS REVIEW':'🟢 READY'}</span></div>
+  <div class="api-links"><button data-api="rates.json">RUB API</button><button data-api="banks.json">USD/EUR API</button><button data-api="nbt.json">NBT API</button><button data-api="calculated.json">Diagnostics</button></div>
+  <details><summary>Payload prepared for Supabase</summary><pre>${escapeHtml(JSON.stringify({rub,nbt,usd:banks.filter(x=>x.currency_code==='USD'),eur:banks.filter(x=>x.currency_code==='EUR')},null,2))}</pre></details>`;
+  apiBox.querySelectorAll('[data-api]').forEach(b=>b.onclick=()=>getJSON(b.dataset.api).then(x=>{const w=window.open('about:blank','_blank');if(w)w.document.write(`<pre>${escapeHtml(JSON.stringify(x,null,2))}</pre>`)}));
 }
-function fmtFx(n){ return n == null ? '—' : Number(n).toFixed(4); }
-function normalizeFx(currency, q, category){
-  if(!q) return null;
-  const buy = Number(q.buy), sell = q.sell == null ? null : Number(q.sell);
-  if(!Number.isFinite(buy)) return null;
-  return {currency, category, buy, sell, text:`${currency}: Buy ${fmtFx(buy)}${sell == null ? '' : ` · Sell ${fmtFx(sell)}`} · ${category}`};
-}
-function renderReferenceRates(){
-  const section = $('#referenceRates');
-  const content = $('#referenceContent');
-  const rr = data?.reference_rates;
-  if(!rr){ section.classList.add('hidden'); return; }
-  section.classList.remove('hidden');
-  const nbt = rr.nbt || {};
-  const alif = rr.alif_api || {};
-  const rows = [];
-  for(const currency of ['USD','EUR','RUB','CNY','KZT']){
-    const q = nbt.rates?.[currency];
-    if(q) rows.push(`<div class="history-item"><strong>NBT · ${currency}</strong><div class="change">${fmtFx(q.per_unit)} TJS / 1 ${currency} · quoted ${fmtFx(q.rate)} per ${q.nominal ?? 1} · ${q.date || nbt.updated_at || 'date unavailable'}</div></div>`);
-    else rows.push(`<div class="history-item"><strong>NBT · ${currency}</strong><div class="change">— not returned by website</div></div>`);
-  }
-  rows.push(`<div class="history-item"><strong>Alif API</strong><div class="change">Status: ${statusText(alif.status)} · ${Object.keys(alif.rates||{}).length ? Object.entries(alif.rates).map(([c,q])=>`${c}: Buy ${fmtFx(q.buy)} / Sell ${fmtFx(q.sell)}`).join(' · ') : (alif.note || alif.error || 'No recognized quotes')}</div></div>`);
-  const banks = rr.banks || {};
-  for(const [id,b] of Object.entries(banks)){
-    const normalized = Object.entries(b.rates||{}).flatMap(([category,quotes])=>Object.entries(quotes||{}).map(([currency,q])=>normalizeFx(currency,q,category)).filter(Boolean));
-    if(normalized.length){
-      const chosen = normalized.filter(x=>x.category==='card').length ? normalized.filter(x=>x.category==='card') : normalized.filter(x=>x.category==='cash');
-      rows.push(`<div class="history-item"><strong>${b.name || id}</strong><div class="change">${chosen.map(x=>x.text).join(' · ')}</div></div>`);
-    }
-  }
-  $('#referenceStatus').textContent = `${Object.keys(nbt.rates||{}).length}/5 NBT · ${Object.keys(banks).length} bank sources`;
-  content.innerHTML = rows.join('') || '<p class="sub">No reference rates collected yet.</p>';
-}
-function render(){
-  if(!data) return;
-  const healthy=data.banks.filter(b=>b.status==='ok'||b.status==='partial').length;
-  const failed=data.banks.length-healthy;
-  $('#generated').textContent=new Date(data.generated_at).toLocaleString();
-  $('#healthy').textContent=`${healthy}/${data.banks.length}`;
-  $('#failed').textContent=failed;
-  banksEl.innerHTML='';
-  const emphasize=$('#onlyPrimary').checked;
-  const pct=Number($('#sberPct').value||1.5);
-  for(const bank of data.banks){
-    const card=document.createElement('article'); card.className='bank';
-    const observed=Number(localStorage.getItem(rateKey(bank.id)))||null;
-    const webPrimary=primaryRate(bank);
-    const delta=observed&&webPrimary?webPrimary-observed:null;
-    const baseForSber=observed||webPrimary;
-    const sber=baseForSber?baseForSber*(1-pct/100):null;
-    const displayRates=visibleRateKeys.filter(key=>bank.rates?.[key]).map(key=>[key,bank.rates[key]]);
-    const rows=displayRates.map(([key,r])=>`<div class="rate-row ${emphasize&&key==='transfer'?'primary':''}"><div class="label">${key==='cash'?'Cash':'Transfers'}${key==='transfer'?' ★':''}</div><div class="value"><strong>${fmt(r.buy_per_1000)}</strong><span>BUY / 1,000 RUB</span></div><div class="value"><strong>${fmt(r.sell_per_1000)}</strong><span>SELL / 1,000 RUB</span></div></div>`).join('')||`<div class="rate-row"><div class="label">No cash/transfer rate extracted</div></div>`;
-    card.innerHTML=`<div class="bank-head"><div><h2>${bank.name}</h2><a class="source" href="${bank.source}" target="_blank" rel="noopener">Official source ↗</a></div><div><span class="badge ${bank.status}">${statusText(bank.status)}</span></div></div><div class="rates">${rows}</div><div class="meta"><p><span class="badge ${bank.suitability}">${suitabilityText(bank.suitability)}</span></p><p>${bank.note||''}</p><p>Bank timestamp: ${bank.source_updated_at?new Date(bank.source_updated_at).toLocaleString():'not exposed / not parsed'} · Last success: ${bank.last_success_at?new Date(bank.last_success_at).toLocaleString():'—'}</p>${bank.error?`<p>Collector: ${bank.error}</p>`:''}<div class="app-compare"><input class="observed" inputmode="decimal" placeholder="Observed app transfer / 1000" value="${observed||''}" data-bank="${bank.id}"><div class="delta ${delta==null?'':Math.abs(delta)<=0.05?'good':'bad'}">Transfer web − app<br><strong>${delta==null?'—':(delta>=0?'+':'')+fmt(delta)}</strong></div><div class="sber">Sber est. −${pct}%<br><strong>${fmt(sber)}</strong></div></div></div>`;
-    banksEl.appendChild(card);
-  }
-  document.querySelectorAll('.observed').forEach(input=>input.addEventListener('change',e=>{const v=Number(String(e.target.value).replace(',','.')); if(v>50&&v<200)localStorage.setItem(rateKey(e.target.dataset.bank),String(v)); else localStorage.removeItem(rateKey(e.target.dataset.bank)); render();}));
-  renderReferenceRates();
-  renderHistory();
-}
-function renderHistory(){
-  const list=$('#history');
-  const filtered=historyData.map(h=>({...h,rates:Object.fromEntries(Object.entries(h.rates||{}).filter(([k])=>visibleRateKeys.includes(k)))})).filter(h=>Object.keys(h.rates).length);
-  const items=filtered.slice(-30).reverse();
-  $('#historyCount').textContent=`${filtered.length} cash/transfer changes`;
-  list.innerHTML=items.map(h=>{const vals=visibleRateKeys.filter(k=>h.rates?.[k]).map(k=>`${k==='cash'?'cash':'transfer'}: ${h.rates[k].buy==null?'—':fmt(h.rates[k].buy*1000)}`).join(' · '); return `<div class="history-item"><div class="time">${new Date(h.at).toLocaleString()}</div><strong>${h.name}</strong><div class="change">${vals}</div></div>`;}).join('')||'<p class="sub">Cash/transfer history begins after the next successful collections.</p>';
-}
-function setRefreshLabel(text,resetAfterMs=null){const button=$('#refresh');button.textContent=text;if(refreshResetTimer)clearTimeout(refreshResetTimer);if(resetAfterMs)refreshResetTimer=setTimeout(()=>{button.textContent='Rescan rates';refreshResetTimer=null;},resetAfterMs);}
-async function fetchSnapshot(){const t=Date.now();const [r,h]=await Promise.all([fetch(`results.json?t=${t}`,{cache:'no-store'}),fetch(`history.json?t=${t}`,{cache:'no-store'})]);if(!r.ok)throw new Error(`results.json HTTP ${r.status}`);data=await r.json();historyData=h.ok?await h.json():[];$('#alert').classList.add('hidden');render();return data;}
-async function load(){try{await fetchSnapshot();}catch(e){$('#alert').textContent=`Could not load collector results: ${e.message}`;$('#alert').classList.remove('hidden');}}
-async function waitForNewSnapshot(previousGeneratedAt){const started=Date.now();while(Date.now()-started<RESCAN_TIMEOUT_MS){await sleep(RESCAN_POLL_MS);try{const next=await fetchSnapshot();if(next?.generated_at&&next.generated_at!==previousGeneratedAt)return true;}catch(e){console.warn('Snapshot polling failed',e);}}return false;}
-async function rescanRates(){const button=$('#refresh');const previousGeneratedAt=data?.generated_at||null;button.disabled=true;button.setAttribute('aria-busy','true');setRefreshLabel('Starting full scan…');$('#alert').classList.add('hidden');try{const response=await fetch(RESCAN_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'daily'}),cache:'no-store'});let payload={};try{payload=await response.json();}catch{}if(response.status===429){setRefreshLabel('Scan already running…');$('#alert').textContent=`A scan was triggered recently. Please wait ${Number(payload?.retry_after||300)} seconds before starting another full scan.`;$('#alert').classList.remove('hidden');return;}if(!response.ok)throw new Error(payload?.message||payload?.error||`HTTP ${response.status}`);setRefreshLabel('Full scan running…');const updated=await waitForNewSnapshot(previousGeneratedAt);if(updated)setRefreshLabel('Full scan complete ✓',2200);else{setRefreshLabel('Scan still pending',2600);$('#alert').textContent='The full scan was triggered, but a newer deployed snapshot did not appear within 4 minutes. Check GitHub Actions for the workflow status.';$('#alert').classList.remove('hidden');}}catch(e){setRefreshLabel('Rescan failed',2400);$('#alert').textContent=`Could not start a full rate rescan: ${e.message}`;$('#alert').classList.remove('hidden');}finally{button.disabled=false;button.removeAttribute('aria-busy');}}
-$('#refresh').addEventListener('click',rescanRates);
-$('#onlyPrimary').addEventListener('change',render);
-$('#sberPct').addEventListener('change',render);
-load();
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function primaryRate(b){return b.rates?.transfer?.buy_per_1000??b.rates?.cash?.buy_per_1000??null}
+function renderReference(){const section=$('#referenceRates'),content=$('#referenceContent');if(!section||!content)return;const rr=data?.reference_rates;if(!rr){section.classList.add('hidden');return}section.classList.remove('hidden');const nbt=rr.nbt||{};const rows=[];for(const c of ['USD','EUR','RUB','CNY','KZT']){const q=nbt.rates?.[c];rows.push(`<div class="history-item"><strong>NBT · ${c}</strong><div class="change">${q?`${fmtFx(q.per_unit)} TJS / 1 ${c} · ${q.date||nbt.updated_at||''}`:'— not returned by NBT website'}</div></div>`)}const alif=rr.alif_api||{};rows.push(`<div class="history-item"><strong>Alif API</strong><div class="change">${statusText(alif.status)} · ${Object.entries(alif.rates||{}).map(([c,q])=>`${c}: Buy ${fmtFx(q.buy)} / Sell ${fmtFx(q.sell)}`).join(' · ')||alif.note||alif.error||'No quotes'}</div></div>`);for(const [id,b] of Object.entries(rr.banks||{})){const qs=Object.entries(b.rates||{}).flatMap(([cat,quotes])=>Object.entries(quotes||{}).map(([c,q])=>({c,cat,q})));if(qs.length)rows.push(`<div class="history-item"><strong>${b.name||id}</strong><div class="change">${qs.map(x=>`${x.c}: Buy ${fmtFx(x.q.buy)} / Sell ${fmtFx(x.q.sell)} · ${x.cat}`).join(' · ')}</div></div>`)}content.innerHTML=rows.join('')}
+function render(){if(!data)return;const healthy=data.banks.filter(b=>['ok','partial'].includes(b.status)).length;$('#generated').textContent=new Date(data.generated_at).toLocaleString();$('#healthy').textContent=`${healthy}/${data.banks.length}`;$('#failed').textContent=data.banks.length-healthy;banksEl.innerHTML='';for(const b of data.banks){const card=document.createElement('article');card.className='bank';const rows=['cash','transfer'].filter(k=>b.rates?.[k]).map(k=>{const r=b.rates[k];return `<div class="rate-row"><div class="label">${k==='cash'?'Cash':'Transfers'}</div><div class="value"><strong>${fmt(r.buy_per_1000)}</strong><span>BUY / 1,000 RUB</span></div><div class="value"><strong>${fmt(r.sell_per_1000)}</strong><span>SELL / 1,000 RUB</span></div></div>`}).join('')||'<div class="rate-row"><div class="label">No rate</div></div>';card.innerHTML=`<div class="bank-head"><div><h2>${b.name}</h2><a class="source" href="${b.source}" target="_blank" rel="noopener">Official source ↗</a></div><span class="badge ${b.status}">${statusText(b.status)}</span></div><div class="rates">${rows}</div><div class="meta">${b.note||''}<br>Last success: ${b.last_success_at?new Date(b.last_success_at).toLocaleString():'—'}${b.error?`<br>Collector: ${escapeHtml(b.error)}`:''}</div>`;banksEl.appendChild(card)}renderReference();renderApi();}
+async function load(){try{const [r,h,apiRates,apiNbt,apiBanks,apiCalc]=await Promise.all([getJSON('../results.json'),getJSON('../history.json').catch(()=>[]),getJSON('rates.json'),getJSON('nbt.json'),getJSON('banks.json'),getJSON('calculated.json')]);data=await r;data.api={rates:apiRates,nbt:apiNbt,banks:apiBanks,calculated:apiCalc};historyData=h;render()}catch(e){const a=$('#alert');a.textContent=`Could not load rate data: ${e.message}`;a.classList.remove('hidden')}}
+async function rescanRates(){const b=$('#refresh');const previous=data?.generated_at;b.disabled=true;b.textContent='Starting full scan…';try{const r=await fetch(RESCAN_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'daily'}),cache:'no-store'});const p=await r.json().catch(()=>({}));if(r.status===429)throw Error(`Scan cooldown: wait ${p.retry_after||300}s`);if(!r.ok)throw Error(p.message||p.error||`HTTP ${r.status}`);b.textContent='Full scan running…';const start=Date.now();let updated=false;while(Date.now()-start<240000){await sleep(8000);try{const next=await getJSON('../results.json');if(next.generated_at&&next.generated_at!==previous){updated=true;await load();break}}catch{}}b.textContent=updated?'Full scan complete ✓':'Scan pending';setTimeout(()=>b.textContent='Rescan rates',2500)}catch(e){b.textContent='Rescan failed';$('#alert').textContent=e.message;$('#alert').classList.remove('hidden');setTimeout(()=>b.textContent='Rescan rates',2500)}finally{b.disabled=false}}
+$('#refresh').addEventListener('click',rescanRates);load();
