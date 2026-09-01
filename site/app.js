@@ -18,6 +18,17 @@ function primaryRate(bank){
   if(bank.primary_category && visibleRateKeys.includes(bank.primary_category) && bank.rates?.[bank.primary_category]?.buy_per_1000 != null) return bank.rates[bank.primary_category].buy_per_1000;
   return null;
 }
+function fmtFx(n){ return n == null ? '—' : Number(n).toFixed(4); }
+function normalizeFx(currency, q, category){
+  if(!q) return null;
+  const buy = Number(q.buy), sell = q.sell == null ? null : Number(q.sell);
+  if(!Number.isFinite(buy)) return null;
+  return {currency, category, buy, sell, text:`${currency}: Buy ${fmtFx(buy)}${sell == null ? '' : ` · Sell ${fmtFx(sell)}`} · ${category}`};
+}
+function copyText(text){
+  if(navigator.clipboard?.writeText) return navigator.clipboard.writeText(text);
+  const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); return Promise.resolve();
+}
 function renderReferenceRates(){
   const section = $('#referenceRates');
   const content = $('#referenceContent');
@@ -29,17 +40,37 @@ function renderReferenceRates(){
   const rows = [];
   for(const currency of ['USD','EUR','RUB','CNY','KZT']){
     const q = nbt.rates?.[currency];
-    if(q) rows.push(`<div class="history-item"><strong>NBT · ${currency}</strong><div class="change">${fmt(q.rate,6)} TJS · nominal ${q.nominal ?? '—'} · ${q.date || nbt.updated_at || 'date unavailable'}</div></div>`);
-    else rows.push(`<div class="history-item"><strong>NBT · ${currency}</strong><div class="change">— not returned by API</div></div>`);
+    if(q) rows.push(`<div class="history-item"><strong>NBT · ${currency}</strong><div class="change">${fmtFx(q.per_unit)} TJS / 1 ${currency} · quoted ${fmtFx(q.rate)} per ${q.nominal ?? 1} · ${q.date || nbt.updated_at || 'date unavailable'}</div></div>`);
+    else rows.push(`<div class="history-item"><strong>NBT · ${currency}</strong><div class="change">— not returned by website</div></div>`);
   }
-  rows.push(`<div class="history-item"><strong>Alif API</strong><div class="change">Status: ${statusText(alif.status)} · ${Object.keys(alif.rates||{}).length ? Object.entries(alif.rates).map(([c,q])=>`${c}: ${fmt(q.buy,6)} / ${fmt(q.sell,6)}`).join(' · ') : (alif.note || alif.error || 'No recognized quotes')}</div></div>`);
+  rows.push(`<div class="history-item"><strong>Alif API</strong><div class="change">Status: ${statusText(alif.status)} · ${Object.keys(alif.rates||{}).length ? Object.entries(alif.rates).map(([c,q])=>`${c}: Buy ${fmtFx(q.buy)} / Sell ${fmtFx(q.sell)}`).join(' · ') : (alif.note || alif.error || 'No recognized quotes')}</div></div>`);
   const banks = rr.banks || {};
+  const shareRows=[];
   for(const [id,b] of Object.entries(banks)){
-    const categoryRows = Object.entries(b.rates||{}).filter(([k])=>!k.startsWith('_')).flatMap(([category,quotes])=>Object.entries(quotes||{}).map(([currency,q])=>`${currency} ${fmt(q.buy,6)} / ${fmt(q.sell,6)} (${category})`));
-    if(categoryRows.length) rows.push(`<div class="history-item"><strong>${b.name || id}</strong><div class="change">${categoryRows.join(' · ')}</div></div>`);
+    const normalized = Object.entries(b.rates||{}).flatMap(([category,quotes])=>Object.entries(quotes||{}).map(([currency,q])=>normalizeFx(currency,q,category)).filter(Boolean));
+    if(normalized.length){
+      const chosen = normalized.filter(x=>x.category==='card').length ? normalized.filter(x=>x.category==='card') : normalized.filter(x=>x.category==='cash');
+      chosen.forEach(x=>shareRows.push(`${b.name || id} — ${x.text}`));
+      rows.push(`<div class="history-item"><strong>${b.name || id}</strong><div class="change">${chosen.map(x=>x.text).join(' · ')}</div></div>`);
+    }
   }
   $('#referenceStatus').textContent = `${Object.keys(nbt.rates||{}).length}/5 NBT · ${Object.keys(banks).length} bank sources`;
   content.innerHTML = rows.join('') || '<p class="sub">No reference rates collected yet.</p>';
+  const shareText = [
+    `Tajikistan USD/EUR rates — ${new Date(rr.collected_at || Date.now()).toLocaleString()}`,
+    ...shareRows,
+    '',
+    `NBT: ${['USD','EUR','RUB','CNY','KZT'].map(c=>{const q=nbt.rates?.[c]; return q ? `${c} ${fmtFx(q.per_unit)}` : `${c} —`;}).join(' · ')}`
+  ].join('\n');
+  let shareBtn=$('#shareReference');
+  if(!shareBtn){
+    shareBtn=document.createElement('button'); shareBtn.id='shareReference'; shareBtn.className='refresh'; shareBtn.textContent='Share USD/EUR rates';
+    section.querySelector('.section-title').appendChild(shareBtn);
+    shareBtn.addEventListener('click',async()=>{
+      try{ if(navigator.share) await navigator.share({title:'Tajikistan USD/EUR rates',text:shareText}); else await copyText(shareText); shareBtn.textContent=navigator.share?'Shared ✓':'Copied ✓'; setTimeout(()=>shareBtn.textContent='Share USD/EUR rates',1800); }
+      catch(e){ if(e?.name!=='AbortError'){ await copyText(shareText); shareBtn.textContent='Copied ✓'; setTimeout(()=>shareBtn.textContent='Share USD/EUR rates',1800); } }
+    });
+  }
 }
 function render(){
   if(!data) return;
