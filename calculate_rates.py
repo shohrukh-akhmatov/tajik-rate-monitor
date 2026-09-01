@@ -35,7 +35,8 @@ def main():
             else:
                 old=old_banks.get(bank_code,{}); ob=((old.get('rates') or {}).get('transfer') or {}).get('buy_per_1000'); base=float(ob)/1000 if ob is not None and valid_rub(float(ob)/1000) else None; src_bank=bank_code; src_kind='last_valid_bank_transfer' if base is not None else 'missing'
             if base is None:
-                anomalies.append({'service_slug':service_slug,'bank_code':bank_code,'code':'MISSING_BASE','message':'No usable base after direct, Alif API, Alif observation and last-valid fallbacks.'}); continue
+                # Alif is mandatory fallback for these destination banks; don't emit an empty calculated row.
+                anomalies.append({'service_slug':service_slug,'bank_code':bank_code,'code':'MISSING_BASE','message':'No usable base after Alif and last-valid fallbacks.'}); continue
             old_base=None
             if use_alif: old_base=((previous_ref.get('alif_api') or {}).get('rates') or {}).get('RUB',{}).get('buy'); old_base=old_base if valid_rub(old_base) else last_valid
             change=pct_change(old_base,base); code=None; msg=None
