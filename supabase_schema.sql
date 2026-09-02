@@ -305,7 +305,11 @@ BEGIN
                 r.sample_target_amount,
                 r.final_rate,
                 coalesce(r.source_observed_at, now()),
-                CASE WHEN r.status = 'ok' THEN 'verified' ELSE r.status END,
+                CASE
+                    WHEN r.status = 'ok' THEN 'verified'
+                    WHEN r.status = 'stale' THEN 'unverified'
+                    ELSE 'unverified'
+                END,
                 'remote_verified',
                 concat('base=', r.base_rate, '; source=', r.base_source_kind, '/', r.base_source_bank_code, '; coefficient=', r.coefficient),
                 'https://shohrukh-akhmatov.github.io/tajik-rate-monitor/api/calculated.json',
