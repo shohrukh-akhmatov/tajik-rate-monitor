@@ -2,7 +2,7 @@
   "version": 2,
   "base_rate_policy": {
     "fallback_source": "alif",
-    "fallback_for": ["ibt", "spitamen", "vasl"],
+    "fallback_for": ["ibt", "spitamen", "vasl", "alif"],
     "preferred_category": "transfer"
   },
   "services": {

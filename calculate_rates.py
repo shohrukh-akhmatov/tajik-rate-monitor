@@ -42,16 +42,16 @@ def is_valid_direct_transfer(bank_code: str, bank: dict, fallback_banks: set[str
 def choose_base(bank_code, bank, alif_base, alif_source, fallback_banks, last_valid_lookup):
     """Resolve the base RUB rate and its provenance for one bank.
 
-    Policy (config/rate_rules.json -> base_rate_policy): Alif is the fallback base
-    only for ibt/spitamen/vasl; every other bank uses its own fresh transfer
-    observation, or its own last-valid base (marked stale) when the site is down.
-    Alif is never substituted for non-fallback banks.
+    Policy: Banks with reliable direct transfer observations use their own rate.
+    Banks in fallback_for (and Alif itself) always use Alif's money transfer API rate.
+    All other banks fall back to Alif when their own rate is unavailable,
+    then to last-valid (stale) as a last resort.
     """
     if is_valid_direct_transfer(bank_code, bank, fallback_banks):
         transfer = (bank.get('rates') or {}).get('transfer') or {}
         base = float(transfer['buy_per_1000']) / 1000
         return base, bank_code, 'bank_transfer_observation'
-    if bank_code in fallback_banks and alif_base is not None:
+    if alif_base is not None:
         return alif_base, 'alif', alif_source
     base = last_valid_lookup(bank_code)
     if base is not None:
