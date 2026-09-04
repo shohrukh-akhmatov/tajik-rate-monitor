@@ -229,6 +229,11 @@ DECLARE
     v_card_bank_name text;
     v_has_card_rates boolean := false;
     v_iso_timestamp text;
+    v_curr_effective_rate numeric;
+    v_curr_status text;
+    v_target_status text;
+    v_curr_nbt_rate numeric;
+    v_existing_card_obj jsonb;
 BEGIN
     SELECT * INTO v_run FROM public.rate_calculation_runs WHERE id = p_run_id FOR UPDATE;
     IF NOT FOUND THEN
@@ -274,6 +279,30 @@ BEGIN
                 ELSE coalesce(r.bank_name, r.bank_code)
             END;
 
+            v_target_status := CASE
+                WHEN r.status = 'ok' THEN 'verified'
+                WHEN r.status = 'stale' THEN 'unverified'
+                ELSE 'unverified'
+            END;
+
+            -- Check if current active rate already has the exact same value and status
+            SELECT effective_rate, verification_status INTO v_curr_effective_rate, v_curr_status
+            FROM public.exchange_rates
+            WHERE service_id = v_service_id
+              AND source_currency = 'RUB'
+              AND target_currency = 'TJS'
+              AND destination_bank_name = v_bank_name
+              AND is_current = true
+              AND deleted_at IS NULL
+            LIMIT 1;
+
+            IF v_curr_effective_rate IS NOT NULL
+               AND v_curr_effective_rate = r.final_rate
+               AND v_curr_status = v_target_status THEN
+                -- Value unchanged, do not create duplicate historical row or fire realtime triggers
+                CONTINUE;
+            END IF;
+
             SELECT coalesce(max(revision), 0) + 1 INTO v_revision
             FROM public.exchange_rates
             WHERE service_id = v_service_id AND source_currency = 'RUB' AND target_currency = 'TJS' AND destination_bank_name = v_bank_name;
@@ -305,11 +334,7 @@ BEGIN
                 r.sample_target_amount,
                 r.final_rate,
                 coalesce(r.source_observed_at, now()),
-                CASE
-                    WHEN r.status = 'ok' THEN 'verified'
-                    WHEN r.status = 'stale' THEN 'unverified'
-                    ELSE 'unverified'
-                END,
+                v_target_status,
                 'remote_verified',
                 concat('base=', r.base_rate, '; source=', r.base_source_kind, '/', r.base_source_bank_code, '; coefficient=', r.coefficient),
                 'https://shohrukh-akhmatov.github.io/tajik-rate-monitor/api/calculated.json',
@@ -321,6 +346,16 @@ BEGIN
 
         -- 2. Process NBT reference rates (RUB, USD, EUR, CNY, KZT)
         ELSIF r.service_slug = 'nbt-reference' AND r.currency_code IN ('RUB', 'USD', 'EUR', 'CNY', 'KZT') THEN
+            -- Check if NBT rate value already matches
+            SELECT buy_rate INTO v_curr_nbt_rate
+            FROM public.national_bank_rates
+            WHERE currency_code = r.currency_code;
+
+            IF v_curr_nbt_rate IS NOT NULL AND v_curr_nbt_rate = r.final_rate THEN
+                -- Value unchanged, skip update so revision doesn't bump and realtime doesn't fire
+                CONTINUE;
+            END IF;
+
             SELECT coalesce(max(revision), 0) + 1 INTO v_revision
             FROM public.national_bank_rates
             WHERE currency_code = r.currency_code;
@@ -381,6 +416,18 @@ BEGIN
                 END;
             END IF;
 
+            -- Check if this specific card rate already has the exact same tjs_per_unit
+            SELECT obj INTO v_existing_card_obj
+            FROM jsonb_array_elements(v_card_rates) q(obj)
+            WHERE upper(coalesce(obj->>'bank_name', '')) = upper(v_card_bank_name)
+              AND upper(coalesce(obj->>'currency_code', '')) = upper(r.currency_code)
+            LIMIT 1;
+
+            IF v_existing_card_obj IS NOT NULL AND (v_existing_card_obj->>'tjs_per_unit')::numeric = r.final_rate THEN
+                -- Value unchanged, do not replace or bump revision
+                CONTINUE;
+            END IF;
+
             -- Replace any existing entry for this specific bank + currency
             SELECT coalesce(jsonb_agg(obj ORDER BY ord), '[]'::jsonb) INTO v_card_rates
             FROM (
@@ -400,7 +447,7 @@ BEGIN
         END IF;
     END LOOP;
 
-    -- Always persist updated card rates if any were processed
+    -- Only persist updated card rates if any rate value actually changed
     IF v_has_card_rates THEN
         UPDATE public.app_configuration
         SET value = v_card_rates,
