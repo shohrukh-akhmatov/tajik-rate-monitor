@@ -159,7 +159,7 @@ def valid_rub_rate(value: float) -> bool:
 
 def parse_decimal_tokens(text: str) -> list[float]:
     values: list[float] = []
-    for token in re.findall(r"(?<!\d)(0[.,]\d{3,6})(?!\d)", text):
+    for token in re.findall(r"(?<!\d)(0[.,]\d{2,6})(?!\d)", text):
         try:
             value = float(token.replace(",", "."))
         except ValueError:
