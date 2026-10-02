@@ -202,11 +202,43 @@ def send_telegram(text: str) -> None:
     print("Telegram notification sent.")
 
 
+
+def fetch_previous_calculated():
+    try:
+        r = requests.get('https://shohrukh-akhmatov.github.io/tajik-rate-monitor/calculated_rates.json', headers={'Cache-Control':'no-cache'})
+        if r.ok: return r.json()
+    except: pass
+    return None
+
+def collect_fallback_changes(previous_calc, current_calc):
+    old_rates = previous_calc.get('rates', []) if previous_calc else []
+    new_rates = current_calc.get('rates', []) if current_calc else []
+    
+    old_map = { (r['service_slug'], r['bank_code']): r for r in old_rates }
+    
+    changes = []
+    for r in new_rates:
+        key = (r['service_slug'], r['bank_code'])
+        old_r = old_map.get(key)
+        old_src = old_r['base_source_bank_code'] if old_r else r['bank_code']
+        new_src = r['base_source_bank_code']
+        
+        if old_src != new_src:
+            if new_src != r['bank_code'] and new_src == 'alif':
+                changes.append(f"⚠️ <b>{html.escape(r['bank_name'])}</b> ({r['service_slug']}): Switched to fallback rate (Alif)")
+            elif old_src != r['bank_code'] and new_src == r['bank_code']:
+                changes.append(f"✅ <b>{html.escape(r['bank_name'])}</b> ({r['service_slug']}): Restored to its own rate")
+    return changes
+
 def main() -> None:
     if not RESULTS.exists():
         raise SystemExit("site/results.json does not exist")
 
     current = json.loads(RESULTS.read_text(encoding="utf-8"))
+    if Path("site/calculated_rates.json").exists():
+        current_calc = json.loads(Path("site/calculated_rates.json").read_text(encoding="utf-8"))
+    else:
+        current_calc = {}
     test_mode = os.getenv("TELEGRAM_TEST", "").strip().lower() in {"1", "true", "yes", "on"}
     if test_mode:
         message = build_test_message(current)
@@ -220,11 +252,15 @@ def main() -> None:
         return
 
     changes = collect_changes(previous, current)
-    if not changes:
+    previous_calc = fetch_previous_calculated()
+    fallback_changes = collect_fallback_changes(previous_calc, current_calc)
+    if not changes and not fallback_changes:
         print("No RUB Cash/Transfer or USD/EUR Card Buy changes detected; no Telegram message sent.")
         return
 
     message = build_change_message(changes, current.get("generated_at"))
+    if fallback_changes:
+        message += "\n\n🔄 <b>Fallback Status Changes:</b>\n" + "\n".join(fallback_changes)
     print(message)
     send_telegram(message)
 
