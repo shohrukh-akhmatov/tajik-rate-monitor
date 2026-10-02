@@ -36,7 +36,16 @@ def is_valid_direct_transfer(bank_code: str, bank: dict, fallback_banks: set[str
     if transfer.get('stale') or transfer.get('fallback_source'):
         return False
     direct = transfer.get('buy_per_1000')
-    return direct is not None and valid_rub(float(direct) / 1000)
+    sell = transfer.get('sell_per_1000')
+    if direct is None or not valid_rub(float(direct) / 1000):
+        return False
+    if sell is not None:
+        try:
+            if float(direct) >= float(sell):
+                return False
+        except:
+            pass
+    return True
 
 
 def choose_base(bank_code, bank, alif_base, alif_source, fallback_banks, last_valid_lookup):
@@ -84,7 +93,7 @@ def card_rub_row(bank_code, bank, base, src_bank, src_kind, rules, generated):
 def main():
     payload=json.loads(RESULTS.read_text(encoding='utf-8')); rules=json.loads(RULES.read_text(encoding='utf-8')); banks={b['id']:b for b in payload.get('banks',[])}; previous=fetch_json(PUBLIC_RESULTS) or {}; previous_calculated=fetch_json(PUBLIC_CALCULATED) or {}; reference=payload.get('reference_rates') or {}; previous_ref=previous.get('reference_rates',{}); old_rates=previous_calculated.get('rates',[]); last_valid_by_bank={}
     for row in old_rates:
-        if row.get('currency_code')=='RUB' and valid_rub(row.get('base_rate')):
+        if row.get('currency_code')=='RUB' and valid_rub(row.get('base_rate')) and row.get('status') in ('ok', 'stale'):
             key=(row.get('service_slug'),row.get('bank_code'))
             if key not in last_valid_by_bank:last_valid_by_bank[key]=float(row['base_rate'])
     alif=((reference.get('alif_api') or {}).get('rates') or {}).get('RUB') or {}; api_base=alif.get('buy'); alif_bank=banks.get('alif',{}); tr=((alif_bank.get('rates') or {}).get('transfer') or {}); obs=tr.get('buy_per_1000'); obs_base=float(obs)/1000 if obs is not None else None
@@ -104,7 +113,18 @@ def main():
                 candidate=((previous_ref.get('alif_api') or {}).get('rates') or {}).get('RUB',{}).get('buy'); old_base=float(candidate) if valid_rub(candidate) else None
             if old_base is None: old_base=last_valid_by_bank.get((service_slug,bank_code))
             change=pct_change(old_base,base); code=None; msg=None
-            if change is not None and change>ar['max_rub_base_change_pct'] and src_kind!='last_valid_route': code='BASE_JUMP'; msg=f'Base rate changed by {change:.2f}%'; anomalies.append({'service_slug':service_slug,'bank_code':bank_code,'code':code,'message':msg})
+            if change is not None and change>ar['max_rub_base_change_pct'] and src_kind!='last_valid_route':
+                if src_kind == 'bank_transfer_observation' and alif_base is not None:
+                    base = alif_base
+                    src_bank = 'alif'
+                    src_kind = alif_source
+                    alif_old_base = ((previous_ref.get('alif_api') or {}).get('rates') or {}).get('RUB',{}).get('buy')
+                    alif_old_base = float(alif_old_base) if valid_rub(alif_old_base) else last_valid_by_bank.get((service_slug, 'alif'))
+                    change = pct_change(alif_old_base, base)
+                    if change is not None and change > ar['max_rub_base_change_pct']:
+                        code='BASE_JUMP'; msg=f'Fallback rate also jumped by {change:.2f}%'; anomalies.append({'service_slug':service_slug,'bank_code':bank_code,'code':code,'message':msg})
+                else:
+                    code='BASE_JUMP'; msg=f'Base rate changed by {change:.2f}%'; anomalies.append({'service_slug':service_slug,'bank_code':bank_code,'code':code,'message':msg})
             raw=base*float(coef); stale=src_kind=='last_valid_route'
             rows.append({'service_slug':service_slug,'bank_code':bank_code,'bank_name':bank.get('name',bank_code),'currency_code':'RUB','base_rate':base,'base_source_bank_code':src_bank,'base_source_kind':src_kind,'coefficient':float(coef),'raw_calculated_rate':raw,'final_rate':round(raw,rules['rounding']['published_rate_decimals']),'sample_source_amount':rules['rounding']['sample_source_amount'],'sample_target_amount':round(raw*rules['rounding']['sample_source_amount'],4),'status':'stale' if stale else ('anomaly' if code else 'ok'),'anomaly_code':code,'anomaly_message':msg,'source_observed_at':generated})
     nbt=reference.get('nbt') or {}
