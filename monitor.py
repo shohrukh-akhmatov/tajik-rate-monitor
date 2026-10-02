@@ -159,7 +159,7 @@ def valid_rub_rate(value: float) -> bool:
 
 def parse_decimal_tokens(text: str) -> list[float]:
     values: list[float] = []
-    for token in re.findall(r"(?<!\d)(0[.,]\d{2,6})(?!\d)", text):
+    for token in re.findall(r"(?<!\d)(0[.,]\d{1,6})(?!\d)", text):
         try:
             value = float(token.replace(",", "."))
         except ValueError:
@@ -174,10 +174,9 @@ def normalize_pair(values: list[float], raw: str, pair_order: str) -> dict[str, 
         return None
     if len(values) == 1:
         return {"buy": values[0], "sell": None, "raw": raw[:240]}
-    first, second = values[0], values[1]
-    if pair_order == "sell_buy":
-        return {"buy": second, "sell": first, "raw": raw[:240]}
-    return {"buy": first, "sell": second, "raw": raw[:240]}
+    buy = min(values[0], values[1])
+    sell = max(values[0], values[1])
+    return {"buy": buy, "sell": sell, "raw": raw[:240]}
 
 
 def extract_spitamen_pair(text: str) -> dict[str, Any] | None:
@@ -185,15 +184,17 @@ def extract_spitamen_pair(text: str) -> dict[str, Any] | None:
     clean = normalize_space(text)
     # Anchor to the explicit Buy/Sell headings to avoid accidentally reading the NBT RUB value.
     m = re.search(
-        r"Покупка\s+Продажа.*?RUB\s+(0[.,]\d{3,6})\s+(0[.,]\d{3,6})",
+        r"Покупка\s+Продажа.*?RUB\s+(0[.,]\d{1,6})\s+(0[.,]\d{1,6})",
         clean, flags=re.I | re.S,
     )
     if not m:
         return None
-    buy = float(m.group(1).replace(",", "."))
-    sell = float(m.group(2).replace(",", "."))
-    if not (valid_rub_rate(buy) and valid_rub_rate(sell)):
+    val1 = float(m.group(1).replace(",", "."))
+    val2 = float(m.group(2).replace(",", "."))
+    if not (valid_rub_rate(val1) and valid_rub_rate(val2)):
         return None
+    buy = min(val1, val2)
+    sell = max(val1, val2)
     return {"buy": buy, "sell": sell, "raw": f"RUB {m.group(1)} {m.group(2)}"}
 
 
