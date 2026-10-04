@@ -125,4 +125,4 @@ jobs:
         uses: actions/configure-pages@v6
       - name: Deploy GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v6
+        uses: actions/deploy-pages@v5
